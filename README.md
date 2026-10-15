@@ -52,6 +52,7 @@ Danach wählst du in den Einstellungen dein Modell, und der erste Anruf kommt.
 | **Gift Cards** | *Gift Card Vault*: Code `XXXX-XXXX` einlösen |
 | **Credit Card** | *Card Terminal*: Kartennummer, Ablaufdatum und Prüfziffer eingeben |
 | **Camera** | Kamerabild aus dem Büro oder deine Webcam |
+| **RemoteDesk** | Fiktive „Fernwartung": schalte dich (mit Zustimmung) auf den Fake-Bildschirm des Anrufers und hol dir dort den Code |
 | **Script** | Dein Spickzettel und das Gedächtnis der Anrufer |
 | **Scamazon** | Upgrades kaufen (Headset, Espresso, Ausweis, Charme-Kurs) |
 | **Banditcam** | Automatische Aufnahmen, Transkripte als .txt herunterladen |
@@ -80,6 +81,17 @@ sanftere Abzüge bei Fehlern und selteneres Auflegen. Standard ist **Leicht**, d
 Kleine Modelle werden automatisch erkannt (z. B. `llama3.2:3b`, `qwen2.5:3b`, `gemma3:4b`). Sie bekommen dann
 einen **kürzeren, einfacheren Prompt**, und das Vertrauen wird stärker über die festen Spielregeln bestimmt
 statt über die oft unzuverlässige Zahl des Modells. So spielen auch kleine Modelle fair und flüssig.
+
+### 📡 RemoteDesk – Fernwartung (fiktives Minispiel)
+
+Echte Support-Betrüger schalten sich per Fernwartung auf den Bildschirm – das greift das Spiel als Satire auf.
+In der **RemoteDesk**-App schaltest du dich **nur mit Zustimmung des (erfundenen) Anrufers** auf seinen
+**komplett zufällig erzeugten NPC-Desktop** und findest dort den Gutschein-Code bzw. die Kartendaten, die er
+dir ohnehin geben wollte – ein alternativer Weg zum Code, statt ihn vorlesen zu lassen.
+
+Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.** Die „Dateien" sind harmlose
+Platzhalter, und der Ordner **„Privat" ist bewusst gesperrt** – wer darin herumschnüffelt, verliert Vertrauen.
+Kotlana OS ist Satire über Betrugsmaschen, kein Werkzeug, um echte Menschen auszuspähen.
 
 ### 🦙 Dein Ollama-Modell ist der Anrufer
 

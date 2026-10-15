@@ -126,7 +126,7 @@ function layout(id) {
 }
 
 // ---------------------------------------------------------------- Desktop & taskbar
-const LEFT_ICONS = ['scamazon', 'giftcards', 'browser', 'banditcam', 'creditcard', 'camera', 'settings', 'demo'];
+const LEFT_ICONS = ['scamazon', 'giftcards', 'browser', 'banditcam', 'creditcard', 'camera', 'remotedesk', 'settings', 'demo'];
 const RIGHT_ICONS = ['script', 'phone'];
 const PINNED = ['script', 'phone', 'camera'];
 
@@ -716,6 +716,108 @@ APPS.creditcard = {
   onOpen() { this.refresh(); },
 };
 
+// ---------------------------------------------------------------- RemoteDesk (fiktives Minispiel)
+// Satire auf den echten Betrugs-Trick „Fernwartung". Alles ist erfunden und lokal erzeugt:
+// kein echtes Gerät, kein Netzwerk, keine echten Daten. Du schaltest dich NUR mit Zustimmung
+// des (fiktiven) Anrufers auf seinen zufällig erzeugten NPC-Desktop und findest dort den Code,
+// den er dir ohnehin geben wollte. Der „Privat"-Ordner ist bewusst gesperrt.
+const PETS = ['Mr. Whiskers', 'Bello', 'Luna', 'Socke', 'Kater Karlo', 'Minka'];
+const LIST = ['Milch', 'Katzenfutter', 'Zeitung', 'Pflaumenkuchen', 'Tee', 'Glühbirnen'];
+function makeFakePC(c) {
+  if (c.fakePC) return c.fakePC;
+  const pet = PETS[Math.floor(Math.random() * PETS.length)];
+  const pay = c.p.pay;
+  return (c.fakePC = {
+    pet, sniff: 0,
+    files: [
+      { id: 'pay', icon: pay === 'giftcard' ? '🎁' : '🏦', name: pay === 'giftcard' ? 'Meine_Gutscheine' : 'Online-Banking' },
+      { id: 'cats', icon: '🐱', name: `Fotos_von_${pet.replace(/\s+/g, '_')}` },
+      { id: 'list', icon: '📝', name: 'Einkaufsliste.txt' },
+      { id: 'pw', icon: '🔑', name: 'passwoerter.txt' },
+      { id: 'locked', icon: '🔒', name: 'Privat' },
+    ],
+  });
+}
+
+APPS.remotedesk = {
+  title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 560,
+  render() {
+    const el = h(`<div class="app rdesk"><div class="app-head" style="border-left-color:${APP_COLORS.remotedesk}">
+      <div class="logo" style="background:${APP_COLORS.remotedesk}">${ICONS.remotedesk}</div>
+      <div><h2>RemoteDesk</h2><p>Fernwartung – schalte dich (nur mit Zustimmung) auf den Bildschirm des Anrufers. Alles rein fiktiv.</p></div></div>
+      <div id="rd-body"></div></div>`);
+    return el;
+  },
+  refresh() {
+    const w = WM.wins.remotedesk; if (!w) return;
+    const body = $('#rd-body', w.body);
+    const c = G.call && G.call.status === 'active' ? G.call : null;
+    const connected = c && c.remoteConnected;
+    const key = !c ? 'none' : !canReveal(c) ? 'locked' + Math.round(c.trust) : connected ? 'desk' + (c.fakePC?.open || '') + (c.fakePC?.sniff || 0) : 'ready';
+    if (body.dataset.key === key) return;
+    body.dataset.key = key;
+    body.innerHTML = '';
+    if (!c) { body.append(h('<div class="note muted">Kein Anruf aktiv. RemoteDesk funktioniert nur während eines Gesprächs.</div>')); return; }
+    if (!canReveal(c)) {
+      body.append(h(`<div class="note muted">${esc(c.p.name)} lässt dich noch nicht auf den Bildschirm – zu wenig Vertrauen (${Math.round(c.trust)}%). Bau im Telefon erst Vertrauen auf.</div>`));
+      return;
+    }
+    if (!connected) {
+      const box = h(`<div><div class="note">${esc(c.p.name)} vertraut dir genug. „Darf ich mich kurz auf Ihren Bildschirm schalten, um das zu reparieren?"</div><button class="big-btn" id="rd-connect">🔌 Verbinden</button></div>`);
+      body.append(box);
+      $('#rd-connect', box).onclick = () => { makeFakePC(c); c.remoteConnected = true; sfx.pickup(); this.refresh(); };
+      return;
+    }
+    // Verbundener Fake-Desktop
+    const pc = makeFakePC(c);
+    const desk = h(`<div class="rd-desk"><div class="rd-top">🖥️ Verbunden mit <b>${esc(c.p.name.split(' ')[0])}-PC</b> · <span class="muted">alles erfunden</span></div>
+      <div class="rd-icons"></div><div class="rd-open" id="rd-open"></div></div>`);
+    const icons = $('.rd-icons', desk);
+    for (const f of pc.files) {
+      const ic = h(`<button class="rd-file"><span class="rd-emoji">${f.icon}</span><span>${esc(f.name)}</span></button>`);
+      ic.onclick = () => { pc.open = f.id; this.openFile(c, f.id, true); };
+      icons.append(ic);
+    }
+    body.append(desk);
+    if (pc.open) this.openFile(c, pc.open, false);
+  },
+  // userClick=true nur bei echtem Klick (Nebenwirkungen), false beim reinen Neuzeichnen.
+  openFile(c, id, userClick) {
+    const w = WM.wins.remotedesk; if (!w) return;
+    const box = $('#rd-open', w.body); if (!box) return;
+    const pc = c.fakePC;
+    box.innerHTML = '';
+    if (id === 'pay') {
+      const title = c.p.pay === 'giftcard' ? 'Gutschein-Code' : 'Kartendaten';
+      const panel = h(`<div class="rd-panel"><h3>📄 ${title}</h3><pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
+        <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins ${c.p.pay === 'giftcard' ? 'Gift Card Vault' : 'Card Terminal'} einfügen</button></div></div>`);
+      c.revealed = true;
+      $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'kopieren fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
+      $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
+      box.append(panel);
+    } else if (id === 'cats') {
+      box.append(h(`<div class="rd-panel"><h3>🐱 Fotos</h3><p>47 Bilder von einer Katze namens <b>${esc(pc.pet)}</b>. ${esc(pc.pet)} schläft, gähnt und sitzt in einem Karton.</p><p class="muted">(Harmlose Platzhalter – echte private Fotos gibt es hier nicht.)</p></div>`));
+    } else if (id === 'list') {
+      box.append(h(`<div class="rd-panel"><h3>📝 Einkaufsliste.txt</h3><pre>${LIST.map((x) => '• ' + x).join('\n')}</pre></div>`));
+    } else if (id === 'pw') {
+      box.append(h(`<div class="rd-panel"><h3>🔑 passwoerter.txt</h3><pre>wlan: 123456\ne-mail: passwort123\npin: 0000</pre><p class="muted">Autsch. Bitte im echten Leben niemals so machen.</p></div>`));
+    } else if (id === 'locked') {
+      box.append(h(`<div class="rd-panel rd-locked"><h3>🔒 Privat – gesperrt</h3>
+        <p>Hier wird nicht geschnüffelt. In den privaten Sachen anderer Leute herumzuwühlen ist genau das, was echte Betrüger tun.</p>
+        <p class="muted">Kotlana OS ist Satire über Betrugsmaschen – kein Werkzeug, um echte Menschen auszuspähen.</p></div>`));
+      if (userClick && c.status === 'active') {
+        pc.sniff = (pc.sniff || 0) + 1;
+        c.trust = clamp(c.trust - 6, 0, 100);
+        showDelta(-6); renderPhone();
+        if (pc.sniff === 1) addMsg(c, 'caller', S.lang === 'de' ? 'Hey, was machen Sie denn da in meinen privaten Ordnern?!' : 'Hey, what are you doing in my private folders?!');
+        else if (pc.sniff >= 3) toast(`${c.p.name} wird richtig misstrauisch, weil du herumschnüffelst.`, 'remotedesk', 3500);
+      }
+    }
+    box.scrollIntoView?.({ block: 'nearest' });
+  },
+  onOpen() { this.refresh(); },
+};
+
 APPS.script = {
   title: 'Script', w: 560, h: 620, x: innerWidth - 560, y: 20,
   render() {
@@ -1001,7 +1103,7 @@ function tick() {
   }
   updateStats();
   if (!G.call && WM.isOpen('phone')) renderPhone();
-  APPS.giftcards.refresh?.(); APPS.creditcard.refresh?.();
+  APPS.giftcards.refresh?.(); APPS.creditcard.refresh?.(); APPS.remotedesk.refresh?.();
   // Läuft Ollama noch nicht? Alle 8 Sekunden erneut prüfen.
   if (ollamaOK === false && G.reviewLeft % 8 === 0) checkOllama();
   if (G.reviewLeft === 0) review();

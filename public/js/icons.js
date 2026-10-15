@@ -16,9 +16,10 @@ export const ICONS = {
   speaker: s('<path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff" stroke="#fff"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" stroke="#fff"/>'),
   mute: s('<path d="M4 9h4l5-4v14l-5-4H4z" fill="#fff" stroke="#fff"/><path d="M17 9l5 6M22 9l-5 6" stroke="#fff"/>'),
   mic: s('<rect x="9" y="3" width="6" height="11" rx="3" fill="#fff" stroke="#fff"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="#fff"/>'),
+  remotedesk: s('<rect x="3" y="4" width="18" height="12" rx="1" stroke="#fff"/><path d="M8 20h8M12 16v4" stroke="#fff"/><path d="M7 8l-2 2 2 2M17 8l2 2-2 2M13 7l-2 6" stroke="#fff"/>'),
 };
 
 export const APP_COLORS = {
   scamazon: '#f39a1f', giftcards: '#f0a23a', browser: '#5fb35a', creditcard: '#139a8c',
-  camera: '#111', script: '#1e88e5', phone: '#0c8a2e', settings: '#5b6b7f', demo: '#8b3fd6', banditcam: '#333',
+  camera: '#111', script: '#1e88e5', phone: '#0c8a2e', settings: '#5b6b7f', demo: '#8b3fd6', banditcam: '#333', remotedesk: '#7b3fe4',
 };

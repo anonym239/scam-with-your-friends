@@ -164,6 +164,22 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .demo .cap { font-size: 15px; }
 .demo .ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
+/* ---------- RemoteDesk (fiktives Minispiel) ---------- */
+.rdesk .big-btn { margin-top: 12px; }
+.rd-desk { border: 2px solid #4b2e8a; border-radius: 8px; overflow: hidden; background: repeating-linear-gradient(135deg, #2a2050 0 22px, #2e2458 22px 44px); }
+.rd-top { background: #1b1430; color: #cbb8ff; padding: 8px 12px; font-size: 14px; }
+.rd-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; padding: 16px; }
+.rd-file { border: 0; background: #ffffff10; border-radius: 6px; color: #fff; padding: 12px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; word-break: break-word; }
+.rd-file:hover { background: #ffffff25; }
+.rd-emoji { font-size: 38px; }
+.rd-open { padding: 0 16px 16px; }
+.rd-panel { background: #fff; color: #1f2937; border-radius: 6px; padding: 14px 16px; }
+.rd-panel h3 { margin: 0 0 8px; }
+.rd-panel pre { background: #f3f4f6; padding: 10px 12px; border-radius: 4px; white-space: pre-wrap; margin: 0; font-size: 14px; }
+.rd-code { font-size: 20px !important; font-weight: 800; letter-spacing: 1px; color: #0f5132; }
+.rd-locked { border: 2px solid #e0353f; }
+.rd-locked h3 { color: #b91c1c; }
+
 /* ---------- Taskbar ---------- */
 #taskbar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: var(--bar); display: flex; align-items: stretch; color: #fff; z-index: 5000; }
 .tb-btn { width: 64px; border: 0; background: none; display: grid; place-items: center; position: relative; }
