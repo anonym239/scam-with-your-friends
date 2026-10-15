@@ -58,35 +58,51 @@ public class WebServer extends NanoHTTPD {
   }
 
   private Response proxy(IHTTPSession session, String path) throws IOException {
-    URL url = new URL(ollamaBase + path);
-    HttpURLConnection con = (HttpURLConnection) url.openConnection();
-    con.setRequestMethod(session.getMethod().name());
-    con.setConnectTimeout(8000);
-    con.setReadTimeout(0); // Streaming-Antworten dürfen lange dauern
-    con.setRequestProperty("Content-Type", "application/json");
-
     Method m = session.getMethod();
-    if (m == Method.POST || m == Method.PUT || m == Method.PATCH) {
-      byte[] body = readBody(session);
-      con.setDoOutput(true);
-      OutputStream os = con.getOutputStream();
-      os.write(body);
-      os.flush();
-      os.close();
-    }
+    byte[] body = (m == Method.POST || m == Method.PUT || m == Method.PATCH) ? readBody(session) : null;
 
-    int code;
-    try {
-      code = con.getResponseCode();
-    } catch (IOException e) {
-      return newFixedLengthResponse(status(502), "application/json",
-          "{\"error\":\"Ollama nicht erreichbar auf " + ollamaBase + " – ist die Ollama-App gestartet?\"}");
+    // Ziel-Adressen in Reihenfolge probieren: vom Header (Einstellung), dann übliche Loopback-Adressen.
+    java.util.LinkedHashSet<String> bases = new java.util.LinkedHashSet<>();
+    String header = session.getHeaders().get("x-ollama-base");
+    if (header != null && header.startsWith("http")) bases.add(header.replaceAll("/+$", ""));
+    bases.add(ollamaBase);
+    bases.add("http://127.0.0.1:11434");
+    bases.add("http://localhost:11434");
+    bases.add("http://[::1]:11434");
+
+    IOException last = null;
+    for (String b : bases) {
+      try {
+        HttpURLConnection con = (HttpURLConnection) new URL(b + path).openConnection();
+        con.setRequestMethod(m.name());
+        con.setConnectTimeout(4000);
+        con.setReadTimeout(0); // Streaming-Antworten dürfen lange dauern
+        con.setRequestProperty("Content-Type", "application/json");
+        if (body != null) {
+          con.setDoOutput(true);
+          OutputStream os = con.getOutputStream();
+          os.write(body);
+          os.flush();
+          os.close();
+        }
+        int code = con.getResponseCode(); // wirft bei Verbindungsfehler -> nächste Adresse
+        InputStream in = code >= 400 ? con.getErrorStream() : con.getInputStream();
+        if (in == null) in = new ByteArrayInputStream(new byte[0]);
+        String ct = con.getContentType();
+        if (ct == null) ct = "application/json";
+        return newChunkedResponse(status(code), ct, in);
+      } catch (IOException e) {
+        last = e; // nächste Adresse versuchen
+      }
     }
-    InputStream in = code >= 400 ? con.getErrorStream() : con.getInputStream();
-    if (in == null) in = new ByteArrayInputStream(new byte[0]);
-    String ct = con.getContentType();
-    if (ct == null) ct = "application/json";
-    return newChunkedResponse(status(code), ct, in);
+    String msg = last == null ? "unbekannt" : last.getMessage();
+    return newFixedLengthResponse(status(502), "application/json",
+        "{\"error\":\"Ollama nicht erreichbar (" + esc(msg) + "). Läuft die Ollama-App und hört sie auf Port 11434? Adresse ggf. in den Einstellungen anpassen.\"}");
+  }
+
+  private static String esc(String s) {
+    if (s == null) return "";
+    return s.replace("\\", "\\\\").replace("\"", "'").replace("\n", " ");
   }
 
   private byte[] readBody(IHTTPSession s) throws IOException {

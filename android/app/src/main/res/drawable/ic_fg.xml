@@ -3,10 +3,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+  <!-- Weißes "K" wie beim PC-Icon, zentriert in der 72dp-Sicherheitszone -->
   <path
-      android:pathData="M42,32 V76 M42,56 L70,32 M46,54 L72,78"
+      android:pathData="M41,34 V74 M41,55 L67,34 M45,53 L69,74"
       android:strokeColor="#FFFFFF"
-      android:strokeWidth="11"
+      android:strokeWidth="13"
       android:strokeLineCap="round"
       android:strokeLineJoin="round" />
 </vector>

@@ -207,10 +207,15 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .tb-stats .personal { color: #4ade80; } .tb-stats .team { color: #4ade80; } .tb-stats .quota { color: #facc15; } .tb-stats .review { color: #f87171; }
 .tb-clock { padding: 0 34px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 19px; gap: 4px; }
 
-#start-menu { position: fixed; left: 4px; bottom: 68px; width: 260px; background: #1b2a3b; color: #fff; z-index: 6000; border-radius: 6px; overflow: hidden; box-shadow: 0 8px 30px #0008; }
-#start-menu .sm-head { padding: 14px; font-weight: 800; background: linear-gradient(135deg, #2a8ee4, #22a447); }
-#start-menu button { display: block; width: 100%; border: 0; background: none; color: #fff; text-align: left; padding: 12px 16px; font-size: 15px; }
-#start-menu button:hover { background: #ffffff18; }
+#start-menu { position: fixed; left: 4px; bottom: 68px; width: 300px; max-height: 80vh; overflow-y: auto; background: #1b2a3b; color: #fff; z-index: 6000; border-radius: 8px; box-shadow: 0 8px 30px #0008; }
+#start-menu .sm-head { padding: 14px; font-weight: 800; background: linear-gradient(135deg, #2a8ee4, #22a447); position: sticky; top: 0; }
+#start-menu .sm-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; }
+#start-menu .sm-app { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; background: none; color: #fff; padding: 10px 4px; border-radius: 6px; font-size: 12px; text-align: center; }
+#start-menu .sm-app:hover { background: #ffffff18; }
+#start-menu .sm-ic { width: 42px; height: 42px; border-radius: 8px; display: grid; place-items: center; }
+#start-menu .sm-ic svg { width: 26px; height: 26px; }
+#start-menu .sm-row { display: block; width: 100%; border: 0; background: none; color: #fff; text-align: left; padding: 12px 16px; font-size: 15px; border-top: 1px solid #ffffff14; }
+#start-menu .sm-row:hover { background: #ffffff18; }
 
 /* ---------- Effects ---------- */
 #flash { position: absolute; inset: 0; background: radial-gradient(circle, rgba(134, 239, 172, .35), rgba(34, 197, 94, .55)); opacity: 0; pointer-events: none; z-index: 4000; }
@@ -232,19 +237,53 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .overlay-card h1 { margin: 0 0 10px; font-size: 34px; }
 
 @media (max-width: 1500px) { .icons { grid-template-columns: repeat(2, 104px); } }
+
+/* ---------- Handy-Modus: Fenster im Vollbild, kompakte Leiste ---------- */
 @media (max-width: 800px) {
-  .icons { grid-template-columns: repeat(3, 84px); gap: 6px; }
-  .icon { width: 84px; font-size: 12px; }
-  .icons.right { display: none; }
-  .tb-stats { padding: 2px 8px; font-size: 10px; line-height: 1.3; white-space: nowrap; }
-  .tb-btn { width: 46px; }
-  .tb-btn .ic { width: 36px !important; height: 36px !important; }
-  #start-btn svg { width: 36px; height: 36px; }
-  .win-title button { width: 34px; }
+  /* Startbildschirm: Icons als App-Raster */
+  .icons { position: static; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 2px; padding: 14px 8px; width: 100%; }
+  .icons.right { display: grid; }
+  #desktop { display: flex; flex-direction: column; overflow-y: auto; bottom: 56px; }
+  .icon { width: auto; font-size: 11px; padding: 8px 2px; }
+  .icon .ic { width: 52px; height: 52px; }
+  .icon .ic svg { width: 32px; height: 32px; }
+  .badge { width: 22px; height: 22px; font-size: 13px; top: -6px; right: 14px; }
+
+  /* Jedes offene Fenster füllt den Bildschirm (wie eine echte App) */
+  .window { position: fixed !important; left: 0 !important; top: 0 !important; right: 0; bottom: 56px; width: auto !important; height: auto !important; resize: none; border-radius: 0; min-width: 0; min-height: 0; }
+  .win-title { height: 44px; font-size: 16px; }
+  .win-title button { width: 44px; height: 40px; }
+
+  /* Telefon etwas kompakter, damit Chat + Buttons passen */
+  .phone { padding: 8px; gap: 7px; }
+  .trust { padding: 8px 10px 6px; }
+  .trust-head { font-size: 16px; }
+  .trust-pct { font-size: 16px; }
+  .portrait-name { font-size: 15px; padding: 6px; }
+  .portrait-img { height: 120px; }
+  .portrait-img svg { height: 120px; }
+  .portrait-dots { height: 18px; }
+  .msg { font-size: 15px; max-width: 88%; }
+  .chat-input input { height: 42px; font-size: 16px; }
+  .btn-hang { height: 48px; font-size: 17px; }
+  .btn-ico { width: 50px; height: 48px; }
+  .app { padding: 12px; }
+  .app-head h2 { font-size: 20px; }
+  .app-head .logo { width: 52px; height: 52px; }
+  input.f, select.f { height: 44px; font-size: 16px; }
+
+  /* Taskleiste: kompakt */
+  #taskbar { height: 56px; }
+  .tb-btn { width: 44px; }
+  .tb-btn .ic { width: 34px !important; height: 34px !important; }
+  #start-btn svg { width: 34px; height: 34px; }
+  .tb-stats { padding: 2px 6px; font-size: 9px; line-height: 1.25; white-space: nowrap; }
   .tb-clock { display: none; }
   .tb-agent { display: none; }
+
   .toast { min-width: 0; }
   #toasts { top: 8px; bottom: auto; left: 8px; right: 8px; }
   .toast .t-ic { width: 32px; height: 32px; }
   #money-pop { font-size: 64px; padding: 14px 30px; border-width: 8px; }
+  #start-menu { left: 0; right: 0; width: auto; bottom: 56px; max-height: 70vh; }
 }

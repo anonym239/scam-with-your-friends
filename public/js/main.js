@@ -1,6 +1,6 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
-import { listModels, version, warmUp } from './ollama.js';
+import { listModels, version, warmUp, setOllamaTarget } from './ollama.js';
 import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, effective, DIFFS } from './callers.js';
 import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor, canReveal } from './ai.js';
@@ -26,7 +26,7 @@ const DEFAULT_SCRIPT = `KOTLANA CALL SCRIPT v2.3
 NIEMALS: drohen, hetzen, beleidigen (Vertrauen sinkt!)`;
 
 const DEFAULTS = {
-  base: '/ollama', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
+  base: '/ollama', ollamaHost: '', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
   tts: false, coworkers: true, recording: true, showThoughts: false, micAI: false, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, difficulty: 'easy', playerName: 'Agent', script: DEFAULT_SCRIPT,
 };
 const store = {
@@ -39,8 +39,9 @@ if (S.callerModel === 'demo') S.callerModel = '';
 delete S.agentModel; delete S.autoplay;
 // v1.2: Ollama-Korrektur der Spracheingabe standardmäßig aus (kostet eine zusätzliche Anfrage = Wartezeit)
 if (!S.v12) { S.micAI = false; S.v12 = true; store.set('settings', S); }
-const saveSettings = () => { store.set('settings', S); configureSounds(S); refreshModelChip(); };
+const saveSettings = () => { store.set('settings', S); configureSounds(S); setOllamaTarget(S.ollamaHost); refreshModelChip(); };
 configureSounds(S);
+setOllamaTarget(S.ollamaHost);
 let MODELS = [];
 let ollamaOK = null;
 
@@ -1036,6 +1037,7 @@ APPS.settings = {
     return h(`<div class="app"><h2 style="margin-top:0">⚙️ Kotlana OS · Ollama</h2>
       <div class="kv">
         <label>Ollama-URL</label><div class="row"><input class="f" style="height:40px;font-size:15px" id="set-base" /><button class="btn" id="set-test" style="flex:none">Testen</button></div>
+        <label>📡 Ollama-Adresse (App)</label><input class="f" style="height:40px;font-size:15px" id="set-ohost" placeholder="http://127.0.0.1:11434" />
         <label>Status</label><div id="set-status" class="muted">–</div>
         <label>Anrufer-Modell</label><select class="f" id="set-caller"></select>
         <label>🎚️ Schwierigkeit</label><select class="f" id="set-diff">${Object.entries(DIFFS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
@@ -1065,6 +1067,8 @@ APPS.settings = {
     const opts = (sel, first) => `<option value="">${first}</option>` + MODELS.map((m) => `<option ${m === sel ? 'selected' : ''}>${esc(m)}</option>`).join('')
       + (sel && !MODELS.includes(sel) ? `<option selected value="${esc(sel)}">${esc(sel)} (nicht gefunden)</option>` : '');
     $('#set-base', b).value = S.base;
+    $('#set-ohost', b).value = S.ollamaHost;
+    $('#set-ohost', b).onchange = async (e) => { S.ollamaHost = e.target.value.trim(); saveSettings(); await checkOllama(); };
     $('#set-caller', b).innerHTML = opts(S.callerModel, MODELS.length ? '– Modell wählen –' : '– keine Modelle gefunden –');
     $('#set-persona', b).innerHTML = PERSONAS.map((p) => `<label>${esc(p.name)}</label><select class="f" data-persona="${p.id}">${opts(S.personaModels[p.id] || '', 'Standard (Anrufer-Modell)')}</select>`).join('');
     $('#set-temp', b).value = S.temperature;
@@ -1208,10 +1212,23 @@ function boot() {
   for (const id of RIGHT_ICONS) $('#icons-right').append(iconEl(id));
   $('#start-btn').innerHTML = ICONS.power;
   $('#start-btn svg').style.cssText = 'background:#1e88e5;border-radius:50%;padding:6px';
-  $('#start-btn').onclick = (e) => { e.stopPropagation(); $('#start-menu').hidden = !$('#start-menu').hidden; };
-  document.addEventListener('click', (e) => { if (!e.target.closest('#start-menu')) $('#start-menu').hidden = true; });
-  $$('#start-menu [data-open]').forEach((b) => (b.onclick = () => { WM.open(b.dataset.open); $('#start-menu').hidden = true; }));
-  $('#start-menu [data-action=restart]').onclick = () => { $('#start-menu').hidden = true; restartDay(); };
+  // Startmenü = Liste ALLER Apps (wichtig auf dem Handy, wo die Fenster die Icons verdecken)
+  const SM_APPS = ['phone', 'giftcards', 'creditcard', 'camera', 'remotedesk', 'browser', 'banditcam', 'scamazon', 'script', 'settings', 'demo'];
+  const sm = $('#start-menu');
+  sm.innerHTML = '<div class="sm-head">Kotlana OS</div><div class="sm-apps"></div>'
+    + '<button class="sm-row" data-action="home">🏠 Startbildschirm</button>'
+    + '<button class="sm-row" data-action="restart">🔄 Neuer Arbeitstag</button>';
+  const smApps = $('.sm-apps', sm);
+  for (const id of SM_APPS) {
+    const a = APPS[id]; if (!a) continue;
+    const b = h(`<button class="sm-app"><span class="sm-ic" style="background:${APP_COLORS[id]}">${ICONS[a.icon || id] || ''}</span><span>${esc(a.label || a.title)}</span></button>`);
+    b.onclick = () => { WM.open(id); sm.hidden = true; };
+    smApps.append(b);
+  }
+  $('#start-btn').onclick = (e) => { e.stopPropagation(); sm.hidden = !sm.hidden; };
+  document.addEventListener('click', (e) => { if (!e.target.closest('#start-menu') && !e.target.closest('#start-btn')) sm.hidden = true; });
+  $('[data-action=restart]', sm).onclick = () => { sm.hidden = true; restartDay(); };
+  $('[data-action=home]', sm).onclick = () => { sm.hidden = true; Object.keys(WM.wins).forEach((id) => WM.minimize(id)); };
   $('#tb-agent').onclick = () => WM.open('settings');
   refreshModelChip();
   renderTaskbar();

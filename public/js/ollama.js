@@ -4,15 +4,21 @@ const clean = (b) => (b || '/ollama').replace(/\/+$/, '');
 // Modelle, die nicht chatten können (Embeddings usw.)
 const NOT_CHAT = /(embed|bge-|minilm|clip|rerank|nomic-embed|snowflake-arctic-embed)/i;
 
+// Ziel-Adresse von Ollama, die der (App-)Proxy nutzen soll. Leer = Standard (127.0.0.1:11434).
+// Wird in der Android-App als Header X-Ollama-Base mitgeschickt; der eingebaute Proxy nutzt sie.
+let ollamaTarget = '';
+export function setOllamaTarget(t) { ollamaTarget = (t || '').trim(); }
+function extraHeaders(h = {}) { return ollamaTarget ? { ...h, 'X-Ollama-Base': ollamaTarget } : h; }
+
 export async function listModels(base) {
-  const r = await fetch(clean(base) + '/api/tags');
-  const j = await r.json();
+  const r = await fetch(clean(base) + '/api/tags', { headers: extraHeaders() });
+  const j = await r.json().catch(() => ({}));
   if (!r.ok || j.error) throw new Error(j.error || `HTTP ${r.status}`);
   return (j.models || []).map((m) => m.name).filter((n) => !NOT_CHAT.test(n)).sort();
 }
 
 export async function version(base) {
-  const r = await fetch(clean(base) + '/api/version');
+  const r = await fetch(clean(base) + '/api/version', { headers: extraHeaders() });
   const j = await r.json();
   return j.version;
 }
@@ -25,7 +31,7 @@ const KEEP_ALIVE = '30m'; // Modell bleibt im Speicher → kein langes Neuladen 
 export function warmUp(base, model) {
   if (!model) return;
   fetch(clean(base) + '/api/generate', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
+    method: 'POST', headers: extraHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ model, prompt: '', keep_alive: KEEP_ALIVE }),
   }).catch(() => {});
 }
@@ -52,7 +58,7 @@ export async function chatJSON(base, model, messages, { temperature = 0.8, timeo
       const body = { model, messages, stream: true, format: 'json', keep_alive: KEEP_ALIVE, options: { temperature, num_predict: maxTokens, num_ctx: 8192 } };
       if (withThink) body.think = false;
       const r = await fetch(clean(base) + '/api/chat', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify(body),
+        method: 'POST', headers: extraHeaders({ 'content-type': 'application/json' }), signal: ctrl.signal, body: JSON.stringify(body),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
