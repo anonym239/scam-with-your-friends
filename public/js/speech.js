@@ -96,7 +96,9 @@ Answer ONLY with JSON: {"text": "<corrected sentence>"}`;
 
 export const MIC_LANGS = { auto: 'wie Gesprächssprache', 'de-DE': 'Deutsch (Deutschland)', 'de-AT': 'Deutsch (Österreich)', 'de-CH': 'Deutsch (Schweiz)', 'en-US': 'English (US)', 'en-GB': 'English (UK)' };
 
-// Startet die Erkennung. onInterim(text) zeigt Zwischenstände, onFinal(text) liefert das Ergebnis.
+// Startet die Erkennung. Hört durchgehend zu und ist erst fertig, wenn du S.micPause Sekunden
+// still bist (oder erneut auf das Mikrofon klickst) – kurze Denkpausen schneiden nichts ab.
+// onInterim(text) zeigt Zwischenstände, onFinal(text) liefert das Ergebnis.
 export function startRecognition({ S, call, model, onInterim, onStatus, onFinal, onEnd }) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return null;
@@ -104,7 +106,7 @@ export function startRecognition({ S, call, model, onInterim, onStatus, onFinal,
   rec.lang = S.micLang && S.micLang !== 'auto' ? S.micLang : S.lang === 'de' ? 'de-DE' : 'en-US';
   rec.interimResults = true;
   rec.maxAlternatives = 5;
-  rec.continuous = false;
+  rec.continuous = true;
   // Neuere Chrome-Versionen können Begriffe bevorzugen ("contextual biasing")
   try {
     if ('phrases' in rec && window.SpeechRecognitionPhrase) {
@@ -112,24 +114,43 @@ export function startRecognition({ S, call, model, onInterim, onStatus, onFinal,
       rec.phrases = words.map((w) => new window.SpeechRecognitionPhrase(w, 5.0));
     }
   } catch {}
-  let done = false;
-  rec.onresult = async (e) => {
-    const res = e.results[e.results.length - 1];
-    if (!res.isFinal) return onInterim(fixTranscript(res[0].transcript, call));
-    if (done) return;
-    done = true;
-    const alts = Array.from(res, (a) => ({ transcript: a.transcript, confidence: a.confidence }));
-    const best = fixTranscript(pickBest(alts), call);
-    let final = best;
-    if (S.micAI && model) {
-      onStatus?.('korrigiere…');
-      const cands = [best, ...alts.map((a) => fixTranscript(a.transcript, call)).filter((t) => t !== best)].slice(0, 4);
-      final = fixTranscript(await correctWithOllama(S, model, call, cands), call);
+
+  const pauseMs = Math.max(800, (Number(S.micPause) || 2) * 1000);
+  const segments = new Map(); // Index → Alternativen der fertigen Abschnitte
+  let interim = '', silence = null, finished = false;
+  const bestOf = (alts) => fixTranscript(pickBest(alts), call);
+  const joined = () => [...segments.keys()].sort((a, b) => a - b).map((k) => bestOf(segments.get(k))).join(' ').replace(/\s+/g, ' ').trim();
+  const armSilence = (ms = pauseMs) => { clearTimeout(silence); silence = setTimeout(() => { try { rec.stop(); } catch {} }, ms); };
+
+  rec.onresult = (e) => {
+    interim = '';
+    for (let i = e.resultIndex ?? 0; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (res.isFinal) segments.set(i, Array.from(res, (a) => ({ transcript: a.transcript, confidence: a.confidence })));
+      else interim += res[0].transcript;
     }
-    onFinal(final);
+    onInterim([joined(), fixTranscript(interim, call)].filter(Boolean).join(' '));
+    armSilence();
   };
   rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') onStatus?.(`Mikrofon-Fehler: ${e.error}`); };
-  rec.onend = () => onEnd?.();
+  rec.onend = async () => {
+    clearTimeout(silence);
+    if (finished) return;
+    finished = true;
+    // Noch nicht abgeschlossener Rest zählt mit (z. B. wenn per Klick beendet wurde)
+    let text = [joined(), fixTranscript(interim, call)].filter(Boolean).join(' ').trim();
+    onEnd?.();
+    if (!text) return;
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+    if (S.micAI && model) {
+      onStatus?.('korrigiere…');
+      const alts = [...segments.values()].flat().map((a) => fixTranscript(a.transcript, call));
+      const cands = segments.size === 1 ? [text, ...alts.filter((t) => t !== text)].slice(0, 4) : [text];
+      text = fixTranscript(await correctWithOllama(S, model, call, cands), call);
+    }
+    onFinal(text);
+  };
   rec.start();
+  armSilence(8000); // bis du anfängst zu reden, hast du etwas länger Zeit
   return rec;
 }

@@ -107,7 +107,7 @@ function maybeEvent(c) {
 }
 
 // ---------------------------------------------------------------- Prompt
-export function callerSystemPrompt(c, lang, event) {
+export function callerSystemPrompt(c, lang, event, swearing = true, insulted = false) {
   const p = c.p;
   const L = lang === 'de' ? 'German (Deutsch)' : 'English';
   const what = p.pay === 'giftcard'
@@ -141,6 +141,10 @@ BE A SMART, BELIEVABLE PERSON:
 - Ask your own questions sometimes, push your own concerns, mention your background naturally. Don't just agree.
 - Warm up to agents who are kind, patient, funny and talk about what you like. Get colder with pressure, jargon you dislike or nonsense.
 - When the agent is vague, ask for specifics.
+${swearing
+    ? `- You have a temper like in the real game: if the agent insults you, threatens you, mocks you, gets pushy, or you realize it is a scam, get really angry and SWEAR at them, loud and over the top (e.g. ${lang === 'de' ? '"Du Bastard!", "Sie Mistkerl!", "Arschloch!", "Verdammter Betrüger!"' : '"You bastard!", "You son of a gun!", "Scumbag!", "Damn crook!"'}). Never use slurs about origin, religion, sexuality, gender or disability.`
+    : '- Even when angry, stay clean: no swear words.'}
+${insulted ? `THE AGENT JUST INSULTED YOU. You are furious – ${swearing ? 'swear at them' : 'tell them off'}, set "mood": "angry".` : ''}
 
 TRUST: rate the agent's LAST message with "trust_change":
  +7..+12 charming, caring, funny or about something you like · +1..+6 polite and helpful · 0 boring or off-topic
@@ -163,7 +167,7 @@ export async function callerTurn(c, S, { opening = false, note = null } = {}) {
   const event = quiet ? null : maybeEvent(c);
   const greet = S.lang === 'de' ? 'Kotlana Tech Support, was kann ich für Sie tun?' : 'Kotlana Tech Support, how can I help you?';
   const messages = [
-    { role: 'system', content: callerSystemPrompt(c, S.lang, event) },
+    { role: 'system', content: callerSystemPrompt(c, S.lang, event, S.swearing !== false, score.why.includes('unhöflich') || score.why.includes('Druck')) },
     ...(opening
       ? [{ role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` },
          { role: 'system', content: `Start the call in character and explain your problem. Your first words could be similar to: "${p0(c, S.lang)}". trust_change must be 0.` }]

@@ -1,7 +1,8 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
 import { listModels, version, chatJSON } from './ollama.js';
-import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits } from './callers.js';
+import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard } from './callers.js';
+import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor } from './ai.js';
 import { startRecognition, MIC_LANGS } from './speech.js';
 
@@ -25,7 +26,7 @@ NIEMALS: drohen, hetzen, beleidigen (Vertrauen sinkt!)`;
 
 const DEFAULTS = {
   base: '/ollama', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
-  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: true, micAutoSend: true, micLang: 'auto', playerName: 'Agent', script: DEFAULT_SCRIPT,
+  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: true, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, playerName: 'Agent', script: DEFAULT_SCRIPT,
 };
 const store = {
   get(k, d) { try { const v = localStorage.getItem('kotlana:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -35,7 +36,8 @@ const S = { ...DEFAULTS, ...store.get('settings', {}) };
 // Aufräumen aus älteren Versionen (Demo-Modus und KI-Spieler gibt es nicht mehr)
 if (S.callerModel === 'demo') S.callerModel = '';
 delete S.agentModel; delete S.autoplay;
-const saveSettings = () => { store.set('settings', S); refreshModelChip(); };
+const saveSettings = () => { store.set('settings', S); configureSounds(S); refreshModelChip(); };
+configureSounds(S);
 let MODELS = [];
 let ollamaOK = null;
 
@@ -210,21 +212,11 @@ function speak(text, who) {
 }
 
 // ---------------------------------------------------------------- Ringtone
-let audioCtx, ringTimer;
+let ringTimer;
 function startRing() {
   stopRing();
-  try {
-    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const beep = () => {
-      [0, 0.25].forEach((t) => {
-        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-        o.frequency.value = 880; g.gain.value = 0.04;
-        o.connect(g).connect(audioCtx.destination);
-        o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.18);
-      });
-    };
-    beep(); ringTimer = setInterval(beep, 1600);
-  } catch {}
+  sfx.ring();
+  ringTimer = setInterval(() => sfx.ring(), 1600);
 }
 function stopRing() { clearInterval(ringTimer); }
 
@@ -263,6 +255,7 @@ async function acceptCall() {
   const c = G.call;
   if (!c || c.status !== 'ringing') return;
   stopRing();
+  sfx.pickup();
   c.status = 'active';
   if (S.recording) toast('Automatic recording started');
   renderPhone();
@@ -285,6 +278,7 @@ function endCall(reason) {
   if (!c || c.status === 'ended') return;
   c.status = 'ended';
   c.endReason = reason;
+  sfx.hangup();
   addMsg(c, 'sys', reason);
   if (!c.claimed && c.revealed) G.lastClaimable = c;
   if (c.history.some((m) => m.role === 'caller')) memory.record(c, S.playerName);
@@ -365,6 +359,7 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
   }
 
   addMsg(c, 'caller', reply, { thought: r.thought, event: r.event });
+  sfx.blip();
   showDelta(c.trust - before);
   c.busy = false;
   renderPhone();
@@ -383,6 +378,22 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
 }
 
 // ---------------------------------------------------------------- Einlösen
+// Trägt die Daten aus dem Gespräch ins passende Formular ein (Claim/Charge klickst du selbst).
+function fillForm(pay, card) {
+  if (pay === 'giftcard') {
+    WM.open('giftcards');
+    $('#gc-code').value = card.code;
+    $('#gc-claim').focus();
+  } else {
+    WM.open('creditcard');
+    $('#cc-num').value = card.number;
+    $('#cc-exp').value = card.exp;
+    $('#cc-cvv').value = card.cvv;
+    $('#cc-claim').focus();
+  }
+}
+
+
 function claimTarget(pay) {
   const c = G.call;
   if (c && c.p.pay === pay && !c.claimed && c.status !== 'ringing') return c;
@@ -395,6 +406,7 @@ function tryClaim(pay, ok) {
   const c = claimTarget(pay);
   if (!c) return { error: pay === 'giftcard' ? 'Kein Anrufer mit Gutscheinkarte in der Leitung.' : 'Kein Anrufer mit Kreditkarte in der Leitung.' };
   if (!ok(c)) {
+    sfx.error();
     if (c === G.call && c.status === 'active') c.trust = clamp(c.trust - 5, 0, 100), showDelta(-5), renderPhone();
     return { error: 'Ungültig – die Daten stimmen nicht.' };
   }
@@ -408,6 +420,7 @@ function reward(c) {
   G.personal += c.p.amount;
   G.team += c.p.amount;
   updateStats();
+  sfx.cash();
   const flash = $('#flash'), pop = $('#money-pop');
   pop.textContent = money(c.p.amount);
   flash.classList.remove('on'); pop.classList.remove('on');
@@ -544,6 +557,18 @@ function appendChat(c, m) {
     : h(`<div class="msg ${m.role}${m.typing ? ' typing' : ''}"><span class="who">${esc(who)}</span><div>${esc(m.text)}</div>
         ${m.thought && S.showThoughts ? `<div class="thought">💭 ${esc(m.thought)}</div>` : ''}</div>`);
   if (m.retry) $('.retry', el).onclick = () => G.call?.retry?.();
+  // Nennt der Anrufer einen Code oder Kartendaten: Kopieren / mit einem Klick ins Formular
+  const card = m.role === 'caller' && !m.typing ? extractCard(m.text, c.p.pay) : null;
+  if (card) {
+    const bar = h(`<div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins ${c.p.pay === 'giftcard' ? 'Gift Card Vault' : 'Card Terminal'} einfügen</button></div>`);
+    $('.copy', bar).onclick = async (e) => {
+      try { await navigator.clipboard.writeText(card.copy); e.target.textContent = '✓ Kopiert'; }
+      catch { e.target.textContent = card.copy; }
+      setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000);
+    };
+    $('.fill', bar).onclick = () => fillForm(c.p.pay, card);
+    el.append(bar);
+  }
   log.append(el);
   log.scrollTop = log.scrollHeight;
   return el;
@@ -816,7 +841,7 @@ APPS.browser = {
 };
 
 APPS.settings = {
-  title: 'Einstellungen', w: 660, h: 800,
+  title: 'Einstellungen', w: 660, h: 880,
   render() {
     return h(`<div class="app"><h2 style="margin-top:0">⚙️ Kotlana OS · Ollama</h2>
       <div class="kv">
@@ -831,9 +856,12 @@ APPS.settings = {
         <p class="muted">Z. B. ein großes Modell für den misstrauischen Kevin und ein kleines für Oma Peggy.</p>
         <div class="kv" id="set-persona"></div></details>
       <label class="toggle"><input type="checkbox" id="set-thoughts"> 💭 Gedanken der Anrufer anzeigen (was das Modell über dich denkt)</label>
+      <label class="toggle"><input type="checkbox" id="set-swear"> 🤬 Anrufer dürfen fluchen, wenn du frech wirst (wie im echten Spiel)</label>
       <label class="toggle"><input type="checkbox" id="set-tts"> 🔊 Sprachausgabe: Anrufer sprechen laut</label>
       <div class="kv" style="margin:8px 0"><label>🎤 Mikrofon-Sprache</label><select class="f" id="set-miclang">${Object.entries(MIC_LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
       <label class="toggle"><input type="checkbox" id="set-micai"> 🎤 Spracherkennung mit Ollama korrigieren (versteht „Tech“ statt „Text“, etwas langsamer)</label>
+      <div class="kv" style="margin:8px 0"><label>🎤 Sprechpause bis zum Senden</label><div class="row" style="align-items:center"><input type="range" min="1" max="5" step="0.5" id="set-micpause" /><span id="set-micpause-v" style="flex:none;width:44px"></span></div>
+        <label>🔈 Lautstärke der Sounds</label><div class="row" style="align-items:center"><input type="range" min="0" max="1" step="0.05" id="set-vol" /><label class="toggle" style="flex:none;margin:0"><input type="checkbox" id="set-sounds"> an</label></div></div>
       <label class="toggle"><input type="checkbox" id="set-micsend"> 🎤 Nach dem Sprechen sofort senden (aus = erst prüfen, dann Enter)</label>
       <label class="toggle"><input type="checkbox" id="set-cow"> 👥 Kollegen verdienen fürs Team mit</label>
       <p class="muted">Die Anrufer werden immer von deinem Ollama-Modell gespielt. Größere Modelle (z. B. <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma2:9b</code>) spielen deutlich schlauer als sehr kleine.<br>
@@ -851,14 +879,21 @@ APPS.settings = {
     $('#set-temp-v', b).textContent = S.temperature;
     $('#set-lang', b).value = S.lang;
     $('#set-name', b).value = S.playerName;
+    $('#set-micpause', b).value = S.micPause; $('#set-micpause-v', b).textContent = S.micPause + ' s';
+    $('#set-vol', b).value = S.volume; $('#set-sounds', b).checked = S.sounds;
+    $('#set-micpause', b).oninput = (e) => { S.micPause = Number(e.target.value); $('#set-micpause-v', b).textContent = S.micPause + ' s'; saveSettings(); };
+    $('#set-vol', b).oninput = (e) => { S.volume = Number(e.target.value); saveSettings(); };
+    $('#set-vol', b).onchange = () => sfx.blip();
+    $('#set-sounds', b).onchange = (e) => { S.sounds = e.target.checked; saveSettings(); if (S.sounds) sfx.pickup(); };
     $('#set-miclang', b).value = S.micLang; $('#set-micai', b).checked = S.micAI; $('#set-micsend', b).checked = S.micAutoSend;
+    $('#set-swear', b).checked = S.swearing;
     $('#set-thoughts', b).checked = S.showThoughts; $('#set-tts', b).checked = S.tts; $('#set-cow', b).checked = S.coworkers;
     $('#set-status', b).innerHTML = ollamaOK === null ? 'prüfe…' : ollamaOK
       ? `<span class="status-dot ok"></span>Verbunden – ${MODELS.length} Modelle${S.callerModel ? '' : ' · <b>bitte ein Modell wählen</b>'}`
       : '<span class="status-dot bad"></span>Ollama nicht erreichbar – starte Ollama und klicke auf „Testen“';
     const bind = (id, key, conv = (x) => x, ev = 'change') => ($('#' + id, b)['on' + ev] = (e) => { S[key] = conv(e.target.type === 'checkbox' ? e.target.checked : e.target.value); saveSettings(); });
     bind('set-temp', 'temperature', Number, 'input'); bind('set-lang', 'lang'); bind('set-name', 'playerName', String, 'input');
-    bind('set-thoughts', 'showThoughts'); bind('set-miclang', 'micLang'); bind('set-micai', 'micAI'); bind('set-micsend', 'micAutoSend'); bind('set-tts', 'tts'); bind('set-cow', 'coworkers');
+    bind('set-thoughts', 'showThoughts'); bind('set-swear', 'swearing'); bind('set-miclang', 'micLang'); bind('set-micai', 'micAI'); bind('set-micsend', 'micAutoSend'); bind('set-tts', 'tts'); bind('set-cow', 'coworkers');
     $('#set-temp', b).addEventListener('input', () => ($('#set-temp-v', b).textContent = S.temperature));
     $('#set-caller', b).onchange = (e) => {
       S.callerModel = e.target.value; saveSettings();
@@ -988,12 +1023,21 @@ function boot() {
   checkOllama();
   setInterval(tick, 1000);
 
-  setTimeout(() => {
-    $('#boot').classList.add('done');
-    if (innerWidth >= 800) WM.open('camera');
-    WM.open('phone');
-    toast('Willkommen bei Kotlana OS! Die Anrufer spielt dein Ollama-Modell.', 'settings', 6000);
-    if (readyToPlay()) scheduleNextCall(3000);
-  }, 1800);
+  // Einschalten per Klick (Browser erlauben Töne erst nach einer Nutzeraktion)
+  const powerOn = () => {
+    if ($('#boot').classList.contains('starting')) return;
+    $('#boot').classList.add('starting');
+    sfx.boot();
+    setTimeout(() => {
+      $('#boot').classList.add('done');
+      if (innerWidth >= 800) WM.open('camera');
+      WM.open('phone');
+      toast('Willkommen bei Kotlana OS! Die Anrufer spielt dein Ollama-Modell.', 'settings', 6000);
+      if (readyToPlay()) scheduleNextCall(3000);
+    }, 1800);
+  };
+  $('#power-btn').onclick = powerOn;
+  $('#boot').addEventListener('click', powerOn);
+  document.addEventListener('keydown', (e) => { if (!$('#boot').classList.contains('starting') && (e.key === 'Enter' || e.key === ' ')) powerOn(); });
 }
 boot();

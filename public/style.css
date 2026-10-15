@@ -26,7 +26,13 @@ button { font-family: inherit; cursor: pointer; }
 .boot-title { font-size: 34px; font-weight: 800; letter-spacing: 1px; }
 .boot-sub { opacity: .7; font-size: 14px; }
 .boot-bar { width: 240px; height: 6px; background: #ffffff22; border-radius: 3px; overflow: hidden; }
-.boot-bar div { height: 100%; width: 0; background: var(--teal); animation: boot 1.6s ease forwards; }
+.boot-bar div { height: 100%; width: 0; background: var(--teal); }
+#boot.starting .boot-bar div { animation: boot 1.6s ease forwards; }
+#boot .boot-bar { opacity: 0; transition: opacity .3s; } #boot.starting .boot-bar { opacity: 1; }
+#power-btn { width: 84px; height: 84px; border-radius: 50%; border: 3px solid #2a8ee4; background: #11263d; color: #7cc4ff; font-size: 40px; box-shadow: 0 0 24px #2a8ee466; transition: transform .15s, box-shadow .2s; }
+#power-btn:hover { transform: scale(1.06); box-shadow: 0 0 40px #2a8ee4aa; }
+#boot.starting #power-btn, #boot.starting .boot-hint { display: none; }
+.boot-hint { opacity: .6; font-size: 14px; }
 @keyframes boot { to { width: 100%; } }
 
 /* ---------- Desktop ---------- */
@@ -172,6 +178,10 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .tb-agent.warn { background: #b45309; }
 .msg .thought { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ffffff33; font-size: 13px; font-style: italic; color: #9fb8d8; }
 .msg.sys.err { color: #fca5a5; font-style: normal; }
+.card-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.card-actions button { border: 0; border-radius: 4px; padding: 6px 10px; font-size: 13px; font-weight: 700; color: #fff; background: #2f6fd0; }
+.card-actions button.fill { background: #22a447; }
+.card-actions button:hover { filter: brightness(1.15); }
 .msg.sys .retry { margin-left: 6px; border: 0; border-radius: 4px; background: #2f6fd0; color: #fff; padding: 4px 10px; font-size: 13px; }
 .idle code { background: #ffffff14; padding: 2px 6px; border-radius: 3px; color: #fff; }
 .tb-stats { background: var(--bar2); padding: 4px 22px 4px 60px; text-align: right; font-weight: 800; font-size: 15px; line-height: 1.4; display: flex; flex-direction: column; justify-content: center; }

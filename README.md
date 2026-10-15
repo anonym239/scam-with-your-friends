@@ -76,6 +76,18 @@ und es gibt auch keine vorgefertigten Ersatz-Antworten.
 - **Vertrauen:** Das Modell entscheidet selbst. Feste Regeln greifen nur bei eindeutigen Fällen (Beleidigung, zu frühe Frage nach dem Code, Wiederholung).
 - **Ausfall:** Antwortet Ollama nicht, steht das im Chat, und mit „Nochmal versuchen“ geht es weiter.
 
+- **Temperament:** Wirst du frech, setzt du jemanden unter Druck oder fliegt der Betrug auf, flucht der Anrufer wie im echten Spiel („Du Bastard!“). Das lässt sich in den Einstellungen abschalten.
+
+### 📋 Code mit einem Klick einfügen
+
+Nennt der Anrufer einen Gutschein-Code oder Kartendaten, erscheinen unter seiner Nachricht **„📋 Kopieren“** und **„➜ Ins Formular einfügen“**.
+Damit sind die Daten sofort im Gift Card Vault bzw. Card Terminal, und du klickst nur noch auf *Claim* oder *Charge*.
+
+### 🔊 Sounds
+
+Hochfahr-Sound (Kotlana OS startet per Power-Knopf), Klingeln, Abheben, Auflegen mit Besetztzeichen, falscher Code und beim erfolgreichen Scam Kasse plus **„Oh yes!“**.
+Alle Sounds werden live erzeugt. Lautstärke und an/aus stellst du in den Einstellungen ein.
+
 ### 🎤 Spracheingabe
 
 Mikrofon-Knopf im Telefon (Chrome oder Edge). Damit „Tech Support“ nicht als „Text Support“ ankommt:
@@ -83,7 +95,8 @@ Mikrofon-Knopf im Telefon (Chrome oder Edge). Damit „Tech Support“ nicht als
 2. Ein Fachwörterbuch korrigiert typische Verhörer (Tech Support, Kotlana, Gift Card, CVV …) und die Namen aus dem Gespräch (Whiskers, Timmy …).
 3. Optional korrigiert dein Ollama-Modell den Satz mit Blick auf das Gespräch.
 
-In den Einstellungen: Mikrofon-Sprache (auch Österreich und Schweiz), Ollama-Korrektur an/aus, „sofort senden“ oder erst prüfen.
+Die Erkennung hört durchgehend zu und sendet erst, wenn du eine einstellbare Zeit still bist (Standard 2 s) oder erneut aufs Mikrofon klickst. Kurze Denkpausen schneiden nichts ab.
+In den Einstellungen: Mikrofon-Sprache (auch Österreich und Schweiz), Sprechpause, Ollama-Korrektur an/aus, „sofort senden“ oder erst prüfen.
 
 ## Technik
 

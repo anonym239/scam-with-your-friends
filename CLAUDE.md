@@ -10,4 +10,6 @@
 - **Spielprinzip (vom Nutzer festgelegt):** Der Mensch ist der Agent, Ollama spielt immer den Anrufer. Es gibt keinen KI-Spieler, keine Demo-Engine und keine automatische Modellwahl. Der Nutzer wählt das Modell selbst, und ohne Ollama gibt es keine Anrufe.
 - KI-Logik: `public/js/ai.js` (Anrufer-Prompt mit "thought", Gedächtnis, Ereignisse), Personas und Regelbewertung in `public/js/callers.js`, Spracheingabe in `public/js/speech.js`.
 - Die Kamera zeigt keine Untertitel (die waren nur im Trailer).
+- Sounds in `public/js/sounds.js` (Web Audio, keine Dateien). Das OS startet per Power-Knopf, weil Browser Töne erst nach einem Klick erlauben.
+- Anrufer dürfen fluchen, wenn der Spieler frech wird (Einstellung „swearing“, Standard an), aber niemals mit Beleidigungen gegen Herkunft, Religion usw.
 - Vor dem Push: im Browser testen (Playwright, auch 1366×768 und Handy-Breite), z. B. mit einem simulierten Ollama-Server.

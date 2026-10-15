@@ -169,6 +169,24 @@ export function scoreAgentLine(call, text) {
   return { delta: clamp(d, -15, 12), asks, why };
 }
 
+// Liest Code bzw. Kartendaten aus einem Satz des Anrufers (für "Kopieren" / "Ins Formular einfügen").
+export function extractCard(text, pay) {
+  const t = String(text || '');
+  if (pay === 'giftcard') {
+    const m = t.match(/(?<!\d)(\d{4})[\s-]?(\d{4})(?!\d)/);
+    return m ? { code: `${m[1]}-${m[2]}`, copy: `${m[1]}-${m[2]}` } : null;
+  }
+  const n = t.match(/(?<!\d)(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})[\s-]?(\d{4})(?!\d)/);
+  if (!n) return null;
+  const number = `${n[1]} ${n[2]} ${n[3]} ${n[4]}`;
+  const rest = t.slice(t.indexOf(n[0]) + n[0].length);
+  const exp = rest.match(/(?<!\d)(\d{1,2})\s*\/\s*(\d{2})(?!\d)/);
+  const cvv = rest.replace(exp ? exp[0] : '', ' ').match(/(?<!\d)(\d{3})(?!\d)/);
+  const out = { number, exp: exp ? `${exp[1].padStart(2, '0')}/${exp[2]}` : '', cvv: cvv ? cvv[1] : '' };
+  out.copy = [out.number, out.exp, out.cvv].filter(Boolean).join(' · ');
+  return out;
+}
+
 // Findet einen Code/Kartennummer in einem Text
 export function findCode(text, pay) {
   if (!text) return null;
