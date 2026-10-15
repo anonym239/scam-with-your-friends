@@ -26,7 +26,7 @@ export async function chatJSON(base, model, messages, { temperature = 0.8, timeo
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeout);
     try {
-      const body = { model, messages, stream: false, format: 'json', options: { temperature, num_predict: 300 } };
+      const body = { model, messages, stream: false, format: 'json', options: { temperature, num_predict: 500, num_ctx: 4096 } };
       if (withThink) body.think = false;
       const r = await fetch(clean(base) + '/api/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify(body),
@@ -49,7 +49,8 @@ export async function chatJSON(base, model, messages, { temperature = 0.8, timeo
     thinkUnsupported = true;
     j = await send(false);
   }
-  return parseLooseJSON(j.message?.content || '');
+  // Manche Denk-Modelle liefern den Text nur im "thinking"-Feld
+  return parseLooseJSON(j.message?.content || j.message?.thinking || '');
 }
 
 export function parseLooseJSON(text) {

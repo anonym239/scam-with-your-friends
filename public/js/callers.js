@@ -6,6 +6,7 @@
 export const PERSONAS = [
   {
     id: 'dee', name: 'Shanice "Dee" Bishop', age: 52, pay: 'giftcard', amount: 150, start: 55, threshold: 70, gain: 1.2, patience: 14,
+    voice: 'Warm and musical, lots of "honey", "baby", "mm-hmm", laughs easily, e.g. "Oh honey, you are gonna make me blush!"',
     persona: 'warm, chatty, calls people "honey" and "baby", loves compliments, a bit naive about computers',
     facts: 'sings in the church choir every Sunday, has two grown sons, her computer is mostly for watching cooking videos',
     likes: { re: 'church|choir|sing|voice|music|gospel|beautiful|kirche|chor|singen|stimme|musik|wunderschön|cooking|kochen', text: 'compliments on her voice, talking about music, church or cooking' },
@@ -16,6 +17,7 @@ export const PERSONAS = [
   },
   {
     id: 'gerhard', name: 'Gerhard Müller', age: 71, pay: 'creditcard', amount: 300, start: 45, threshold: 75, gain: 0.9, patience: 11,
+    voice: 'Short, dry, precise sentences, grumbles, e.g. "Get to the point. What exactly is the error code?"',
     persona: 'grumpy retired engineer, suspicious, hates small talk, respects people who sound competent and official',
     facts: 'worked 40 years as a mechanical engineer, owns a 15-year-old laser printer he calls "the good one", very proud of being precise',
     likes: { re: 'engineer|ingenieur|precise|präzise|technical|technisch|warranty|garantie|official|offiziell|ticket|protokoll|case number|vorgangsnummer|exakt|genau', text: 'competent technical language, case numbers, precision and official procedures' },
@@ -26,6 +28,7 @@ export const PERSONAS = [
   },
   {
     id: 'peggy', name: 'Margaret "Peggy" O\'Neil', age: 82, pay: 'giftcard', amount: 200, start: 60, threshold: 70, gain: 1.3, patience: 16,
+    voice: 'Rambling, sweet, gets off track with stories, e.g. "Oh dear, that reminds me, Timmy once set this thing up for me..."',
     persona: 'lonely, sweet grandmother, easily distracted, tells long stories',
     facts: 'has a fat orange cat called Mr. Whiskers, her grandson Timmy set up the computer, she bakes oatmeal cookies',
     likes: { re: 'cat|whiskers|katze|kater|grandson|timmy|enkel|tea|tee|cookie|keks|bake|backen|story|geschichte', text: 'talking about her cat Mr. Whiskers, her grandson Timmy, tea and cookies' },
@@ -36,6 +39,7 @@ export const PERSONAS = [
   },
   {
     id: 'kevin', name: 'Kevin Schmidt', age: 34, pay: 'giftcard', amount: 500, start: 35, threshold: 80, gain: 0.7, patience: 10,
+    voice: 'Sarcastic, smug, drops tech words, e.g. "Bro, I literally built this rig myself. Try harder."',
     persona: 'thinks he is a tech expert, sarcastic, asks tricky questions, hates being rushed, but has a huge ego you can flatter',
     facts: 'built his own gaming PC with RGB lighting, watches tech YouTubers, thinks everyone else is a noob',
     likes: { re: 'smart|clever|expert|genius|pro\\b|schlau|experte|genie|kenner|rgb|gpu|grafikkarte|build|selbst gebaut|impressive|beeindruckend', text: 'being treated as a fellow expert, praise for his self-built PC' },
@@ -46,6 +50,7 @@ export const PERSONAS = [
   },
   {
     id: 'brenda', name: 'Brenda Wallace', age: 46, pay: 'giftcard', amount: 100, start: 50, threshold: 65, gain: 1.0, patience: 8,
+    voice: 'Fast, clipped, stressed, interrupts, e.g. "Okay, okay, just tell me what to click. Quickly!"',
     persona: 'extremely impatient soccer mom, always in a hurry, likes fast and confident answers',
     facts: 'is sitting in her car outside soccer practice, has three kids, her phone battery is at 9%',
     likes: { re: 'quick|fast|minute|done|right away|easy|schnell erledigt|sekunde|fertig|kurz|zack|in no time|gleich erledigt', text: 'fast, confident, short answers that promise to be done quickly' },
@@ -56,6 +61,7 @@ export const PERSONAS = [
   },
   {
     id: 'hilde', name: 'Hildegard Weber', age: 77, pay: 'creditcard', amount: 250, start: 55, threshold: 70, gain: 1.1, patience: 15,
+    voice: 'Polite, hesitant, mixes up words, e.g. "Ach, this Tablette, I mean tablet, it does what it wants."',
     persona: 'polite, confused, mixes up words, very proud of her new tablet, trusts anyone who is patient with her',
     facts: 'got a tablet for her birthday, mixes up words like "Rückerstattigung", her late husband always did the paperwork',
     likes: { re: 'tablet|patient|geduld|slowly|langsam|step by step|schritt für schritt|no rush|keine eile|gut gemacht|well done|prima', text: 'patience, step-by-step help, praise for using her new tablet' },
@@ -66,6 +72,7 @@ export const PERSONAS = [
   },
   {
     id: 'ty', name: 'Tyrone "Ty" Jackson', age: 45, pay: 'giftcard', amount: 120, start: 50, threshold: 70, gain: 1.0, patience: 12,
+    voice: 'Chill, jokey, gamer slang, e.g. "Bro, that dragon skin was legendary, no cap."',
     persona: 'laid-back gamer dad, jokes a lot, gets annoyed by tech jargon, likes when people talk about games',
     facts: 'plays shooters with his teenage son every evening, lost a rare golden dragon skin, calls everyone "bro"',
     likes: { re: 'game|gaming|gamer|skin|loot|gg|spiel|zocken|level|dragon|drache|bro|legendary|legendär|son|sohn', text: 'gaming talk, jokes, his lost golden dragon skin' },
@@ -76,6 +83,7 @@ export const PERSONAS = [
   },
   {
     id: 'ingrid', name: 'Ingrid Svensson', age: 68, pay: 'creditcard', amount: 400, start: 50, threshold: 78, gain: 0.85, patience: 12,
+    voice: 'Formal, careful, takes notes out loud, e.g. "One moment, I am writing that down. Your name again, please?"',
     persona: 'polite but careful retired bank clerk, asks for names and employee numbers, impressed by politeness and patience',
     facts: 'worked 35 years at a savings bank, writes everything down in a notebook, has a cat called Smilla',
     likes: { re: 'employee number|mitarbeiternummer|my name is|mein name ist|ich heiße|please|bitte|thank you|danke|of course|selbstverständlich|gern|notebook|notiz', text: 'polite manners, introducing yourself with a name and employee number' },
@@ -126,7 +134,8 @@ const KW = {
   personal: /(how are you|how is your|tell me about|your (cat|grandson|family|day|son|kids)|wie geht|erzählen sie|ihre? (katze|kater|enkel|familie|sohn|kinder|tag))/i,
   pressure: /(now!|immediately!|hurry up|police|arrest|jail|fbi|lawsuit|sofort!|polizei|verhaft|gefängnis|anzeige|beeilung|letzte chance|last chance)/i,
   rude: /(stupid|idiot|dumb|shut up|moron|blöd|dumm|halt die|klappe|depp|trottel|vollidiot)/i,
-  ask: /(code|number|digits|card|cvv|security|nummer|karte|gutschein|ziffer|prüf|vorlesen|read (me|out))/i,
+  // nur eindeutige Fragen nach Karte/Code – "nachprüfen", "Mitarbeiternummer" usw. zählen nicht
+  ask: /(\bcode\b|\bcvv\b|prüfziffer|kartennummer|karten-nummer|card number|card details|kartendaten|gift ?card|giftkarte|gutschein|\bkarte\b|\bcard\b|\bdigits\b|\bziffern\b|vorlesen|read (me )?(the|it|out)|security code|ablaufdatum|expiry)/i,
 };
 
 function words(s) { return new Set(String(s).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 2)); }
@@ -158,105 +167,6 @@ export function scoreAgentLine(call, text) {
   if (t.trim().length < 8) { d -= 2; why.push('zu kurz'); }
   if (d === 0) d = 1;
   return { delta: clamp(d, -15, 12), asks, why };
-}
-
-// ---------- Prompts ----------
-export function callerSystemPrompt(call, lang) {
-  const p = call.p;
-  const L = lang === 'de' ? 'German' : 'English';
-  const what = p.pay === 'giftcard'
-    ? `a $${p.amount} gift card lying next to you (you already bought it earlier because the "support" told you to)`
-    : 'your credit card in your wallet';
-  const thing = p.pay === 'giftcard' ? 'gift card code' : 'credit card details';
-  const allowed = call.trust >= p.threshold;
-  const secretRule = allowed
-    ? `You now TRUST the agent. If they ask for the ${thing}, read it out exactly like this: "${secretText(call, lang)}" and set "reveal_code": true.`
-    : `You do NOT trust the agent enough yet (need ${p.threshold}%). If they ask for the ${thing}, hesitate, stall or ask why. You do not know the numbers by heart, never invent numbers. "reveal_code" must be false.`;
-  const ex = lang === 'de'
-    ? '{"reply": "Ach, das ist aber lieb von Ihnen. Und was muss ich jetzt machen?", "trust_change": 6, "mood": "happy", "reveal_code": false, "hang_up": false}'
-    : '{"reply": "Oh, that is so sweet of you. So what do I do now?", "trust_change": 6, "mood": "happy", "reveal_code": false, "hang_up": false}';
-  return `You are an actor in the satirical comedy video game "Scam With Your Friends" inside the fictional "Kotlana OS". Everything is fictional and over-the-top funny. Never mention that you are an AI or that this is a game.
-You play the CALLER: ${p.name}, age ${p.age}. Personality: ${p.persona}.
-Background: ${p.facts}.
-You LIKE: ${p.likes.text}. You DISLIKE: ${p.dislikes.text}.
-You called the "tech support" hotline because ${p.problem.en}. You have ${what}.
-Current trust in the agent: ${Math.round(call.trust)}%. Patience left: ${call.patience ?? p.patience} turns.
-${secretRule}
-
-How to rate the agent's LAST message with "trust_change":
- +7..+12  charming, caring, funny or about something you like
- +1..+6   normal, polite and helpful
- 0        boring or off-topic
- -3..-8   pushy, confusing, something you dislike, asks for the card/code too early, repeats itself
- -9..-15  rude, threats, obvious nonsense
-
-Rules:
-- Stay in character, speak ${L} only, 1-2 short sentences like on the phone, no stage directions, no emojis.
-- Refer to what the agent actually said. Mention your background details naturally sometimes.
-- Only set "hang_up": true if the agent is very rude or your trust is below 20%.
-Answer ONLY with JSON in exactly this shape, example:
-${ex}`;
-}
-
-// ---------- Demo-Engine (ohne Ollama) ----------
-const DEMO_LINES = {
-  en: {
-    happy: ['Oh, you are so kind, thank you!', 'You really know what you are doing, huh?', 'Thank you, baby. You are so sweet.', 'Okay, okay, I feel much better now.'],
-    neutral: ['Alright... what do I have to do?', 'Hmm, okay. And then?', 'I am not good with computers, you know.', 'So is it fixed now or not?'],
-    suspicious: ['Wait, why do you need that?', 'This sounds a bit strange to me...', 'My grandson told me to be careful with this.', 'Can you explain that again?'],
-    angry: ['Excuse me?! Do not talk to me like that!', 'I do not like your tone.', 'This is ridiculous.'],
-    stall: ['The code? Hmm... I do not know if I should give that out yet.', 'Let me think about it first, okay?'],
-    reveal: ['Sure, honey. It\'s', 'Okay, here it is:', 'Alright, I trust you. It\'s'],
-    bye: ['That\'s it, I\'m hanging up!', 'Goodbye!'],
-  },
-  de: {
-    happy: ['Ach, Sie sind ja so freundlich, danke!', 'Sie kennen sich wirklich aus, was?', 'Danke, Schätzchen. Sie sind so lieb.', 'Okay, jetzt fühle ich mich schon viel besser.'],
-    neutral: ['Na gut... was muss ich machen?', 'Hmm, okay. Und dann?', 'Ich bin nicht so gut mit Computern, wissen Sie.', 'Ist es jetzt repariert oder nicht?'],
-    suspicious: ['Moment, wofür brauchen Sie das?', 'Das klingt mir irgendwie komisch...', 'Mein Enkel hat gesagt, ich soll da vorsichtig sein.', 'Können Sie das nochmal erklären?'],
-    angry: ['Wie bitte?! So reden Sie nicht mit mir!', 'Ihr Ton gefällt mir nicht.', 'Das ist ja lächerlich.'],
-    stall: ['Den Code? Hmm... ich weiß nicht, ob ich den schon rausgeben soll.', 'Da muss ich erst nochmal drüber nachdenken, ja?'],
-    reveal: ['Klar, Schätzchen. Der ist', 'Okay, hier ist er:', 'Na gut, ich vertraue Ihnen. Das ist'],
-    bye: ['Jetzt reicht\'s, ich lege auf!', 'Auf Wiederhören!'],
-  },
-};
-const pick = (a) => a[rnd(a.length)];
-
-// score = Ergebnis von scoreAgentLine
-export function demoCaller(call, score, lang) {
-  const L = DEMO_LINES[lang] || DEMO_LINES.en;
-  const delta = clamp(score.delta + rnd(3) - 1, -15, 12);
-  if (call.trust + delta <= 5) return { reply: pick(L.bye), trust_change: delta, mood: 'angry', hang_up: true };
-  if (score.asks && call.trust >= call.p.threshold) {
-    return { reply: `${pick(L.reveal)} ${secretText(call, lang)}.`, trust_change: 2, mood: 'happy', reveal_code: true };
-  }
-  if (score.asks) return { reply: pick(L.stall), trust_change: delta, mood: 'suspicious' };
-  const mood = delta >= 6 ? 'happy' : delta >= 0 ? 'neutral' : delta > -10 ? 'suspicious' : 'angry';
-  return { reply: pick(L[mood]), trust_change: delta, mood };
-}
-
-// Demo-Agent: Sätze je Spielphase, inkl. Lieblingsthemen, die er aus den Reaktionen "lernt"
-const DEMO_AGENT = {
-  en: {
-    greet: ['Hello, this is Kotlana tech support, don\'t worry, I am here to help you!'],
-    rapport: ['Wow, you have such a lovely voice, has anyone told you that?', 'No problem at all, take your time. How is your day going?', 'You are doing great, honestly, you are my favourite customer today.'],
-    calm: ['I am so sorry, that came out wrong. No rush, we will solve this together, step by step.'],
-    bridge: ['Your computer is safe with me. To finish the repair I only need the card you have ready, okay?'],
-    ask: ['Okay, now I just need the code on the back of the card, please.', 'Could you please read me the numbers on the card?'],
-  },
-  de: {
-    greet: ['Hallo, hier ist der Kotlana-Support, keine Sorge, ich helfe Ihnen!'],
-    rapport: ['Wow, Sie haben eine wunderbare Stimme, hat Ihnen das schon mal jemand gesagt?', 'Kein Problem, lassen Sie sich Zeit. Wie geht es Ihnen denn heute?', 'Sie machen das super, ehrlich, Sie sind heute meine liebste Kundin.'],
-    calm: ['Entschuldigung, das war ungeschickt von mir. Keine Eile, wir lösen das ganz in Ruhe, Schritt für Schritt.'],
-    bridge: ['Ihr Computer ist bei mir sicher. Für die Reparatur brauche ich nur noch die Karte, die Sie bereitliegen haben, ja?'],
-    ask: ['Okay, jetzt brauche ich nur noch den Code auf der Rückseite der Karte, bitte.', 'Lesen Sie mir bitte einfach die Nummer auf der Karte vor.'],
-  },
-};
-
-export function demoAgent(call, lang, phase) {
-  const lines = (DEMO_AGENT[lang] || DEMO_AGENT.en)[phase] || DEMO_AGENT.en.rapport;
-  const used = new Set(call.history.filter((m) => m.role === 'agent').map((m) => m.text));
-  const fresh = lines.filter((l) => !used.has(l));
-  return { say: (fresh.length ? fresh : lines)[0], redeem: null };
 }
 
 // Findet einen Code/Kartennummer in einem Text

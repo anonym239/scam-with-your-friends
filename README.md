@@ -1,8 +1,7 @@
 # Kotlana OS – Scam With Your Friends × Ollama
 
 Ein Nachbau des **Kotlana OS** aus *Scam With Your Friends*, der im Browser läuft – mit einem Unterschied:
-**deine lokalen Ollama-Modelle spielen mit.** Ein Modell spielt die Anrufer, und wenn du willst, spielt ein
-zweites Modell den Agenten, also das ganze Spiel selbst.
+**die Anrufer werden von deinem lokalen Ollama-Modell gespielt.** Du bist der Agent und redest per Tastatur oder Mikrofon mit ihnen.
 
 > Satire und Fiktion. Alle Anrufer, Codes und Kartennummern sind ausgedacht.
 
@@ -34,8 +33,7 @@ npm start
 # → http://localhost:3000
 ```
 
-Ohne Ollama läuft das Spiel trotzdem: Wähle als Modell **„Demo (ohne Ollama)“** oder klicke in der
-Demo-App auf **„Demo starten“**.
+Danach wählst du in den Einstellungen dein Modell, und der erste Anruf kommt.
 
 ### Optionen (Umgebungsvariablen)
 
@@ -53,40 +51,44 @@ Demo-App auf **„Demo starten“**.
 | **Caller Trust** | Freundlichkeit, Komplimente und Geduld lassen das Vertrauen steigen; Druck und Beleidigungen lassen es sinken. Ab der Schwelle des Anrufers liest er den Code vor |
 | **Gift Cards** | *Gift Card Vault*: Code `XXXX-XXXX` einlösen |
 | **Credit Card** | *Card Terminal*: Kartennummer, Ablaufdatum und Prüfziffer eingeben |
-| **Camera** | Demo-Kamerabild oder deine Webcam, mit Live-Untertiteln von dem, was der Agent sagt |
-| **Script** | Dein Call-Script, das der KI-Spieler als Strategie mitbekommt |
+| **Camera** | Kamerabild aus dem Büro oder deine Webcam |
+| **Script** | Dein Spickzettel und das Gedächtnis der Anrufer |
 | **Scamazon** | Upgrades kaufen (Headset, Espresso, Ausweis, Charme-Kurs) |
 | **Banditcam** | Automatische Aufnahmen, Transkripte als .txt herunterladen |
 | **Browser** | `kotlana://ollama` zeigt den Ollama-Status und die Modelle, `kotlana://help` ist das Wiki |
-| **Einstellungen** | Ollama-URL, Anrufer-Modell, KI-Spieler-Modell, Temperatur, Sprache (DE/EN) |
-| **Demo** | Deine Screenshots als Slideshow, dazu die Knöpfe zum Start von Demo oder Ollama-Autoplay |
+| **Einstellungen** | Ollama-URL, Anrufer-Modell (auch pro Figur), Kreativität, Sprache, Gedanken anzeigen, Mikrofon |
+| **Demo** | Screenshots aus dem Trailer als Slideshow |
 
 Erreiche die **Quota**, bevor der Timer der **Performance Review** abläuft. Sonst wirst du gefeuert.
 
-### 🧠 So denkt die KI
+### 🦙 Dein Ollama-Modell ist der Anrufer
 
-**Anrufer:** Jede Figur hat einen Hintergrund, Vorlieben, Abneigungen und eine begrenzte Geduld.
-Peggy liebt zum Beispiel ihren Kater Mr. Whiskers, und Gerhard hasst Kosenamen. Die Vertrauensänderung ist eine
-Mischung aus der Einschätzung des Modells und festen Spielregeln: Komplimente, Geduld und Lieblingsthemen geben Plus;
-Druck, Beleidigungen, Wiederholungen und eine zu frühe Frage nach dem Code geben Minus.
-Deshalb bleibt das Spiel auch mit kleinen Modellen fair. Den echten Code sieht das Modell erst, wenn das Vertrauen reicht.
+Du bist der Agent, und jede Person am Telefon wird live von deinem Ollama-Modell gespielt. Ohne Ollama gibt es keine Anrufe,
+und es gibt auch keine vorgefertigten Ersatz-Antworten.
 
-**KI-Spieler:** Er arbeitet in Phasen (Begrüßung → Vertrauen aufbauen → beruhigen → Überleitung → nach dem Code fragen → einlösen).
-Bei jedem Zug sieht er, wie seine letzten Sätze angekommen sind („+6, Lieblingsthema“ oder „−7, mag das nicht“), und passt sich an.
-Über mehrere Anrufe hinweg merkt er sich die besten und die schlechtesten Sätze. Dieses **KI-Gedächtnis** findest du in der Script-App.
-Wiederholt er sich, wird die Antwort neu erzeugt. Kaputte Antworten (kein JSON, leer, Zeitüberschreitung) fängt die Demo-Engine ab.
+- **Modell selbst wählen:** in den Einstellungen das Anrufer-Modell, optional auch ein eigenes Modell pro Figur.
+  Das Spiel wählt nie selbst ein Modell. Größere Modelle (z. B. `llama3.1:8b`, `qwen2.5:7b`, `gemma2:9b`) spielen deutlich schlauer.
+- **Schlaue Anrufer:** Vor jeder Antwort überlegt das Modell kurz („thought“): Was will der Agent, passt das zu dem, was er vorher gesagt hat?
+  Jede Figur hat Hintergrund, Vorlieben, Abneigungen, eine eigene Sprechweise und begrenzte Geduld. Sie stellt Gegenfragen
+  und merkt Widersprüche. Mit „💭 Gedanken der Anrufer anzeigen“ siehst du, was das Modell über dich denkt.
+- **Gedächtnis:** Die Anrufer erinnern sich an frühere Gespräche. Wer abgezockt wurde, ruft beim nächsten Mal misstrauisch an.
+- **Lebendige Gespräche:** Manchmal klingelt es an der Tür, oder der Enkel schreibt „Ist das ein Betrug??“.
+- **Vertrauen:** Das Modell entscheidet selbst. Feste Regeln greifen nur bei eindeutigen Fällen (Beleidigung, zu frühe Frage nach dem Code, Wiederholung).
+- **Ausfall:** Antwortet Ollama nicht, steht das im Chat, und mit „Nochmal versuchen“ geht es weiter.
 
-### 🤖 Ollama spielt Kotlana OS
+### 🎤 Spracheingabe
 
-Mit dem Schalter in der Taskleiste („🧑 Du spielst“ / „🤖 KI spielt“) übernimmt das **KI-Spieler-Modell**.
-Es nimmt Anrufe an, tippt seine Antworten ins Telefon, baut Vertrauen auf, fragt nach dem Code und öffnet
-dann selbst den Gift Card Vault oder das Card Terminal, tippt die Daten ein und klickt auf *Claim*.
-Anrufer und Agent können zwei verschiedene Modelle sein, zum Beispiel `llama3.2` gegen `qwen3`.
+Mikrofon-Knopf im Telefon (Chrome oder Edge). Damit „Tech Support“ nicht als „Text Support“ ankommt:
+1. Der Browser liefert mehrere Varianten, und die mit den passenden Fachwörtern gewinnt.
+2. Ein Fachwörterbuch korrigiert typische Verhörer (Tech Support, Kotlana, Gift Card, CVV …) und die Namen aus dem Gespräch (Whiskers, Timmy …).
+3. Optional korrigiert dein Ollama-Modell den Satz mit Blick auf das Gespräch.
+
+In den Einstellungen: Mikrofon-Sprache (auch Österreich und Schweiz), Ollama-Korrektur an/aus, „sofort senden“ oder erst prüfen.
 
 ## Technik
 
 - `server.js` liefert `public/` aus und leitet `/ollama/*` an Ollama weiter, deshalb gibt es kein CORS-Problem
-- `public/js/main.js` enthält Fenstermanager, Taskleiste, Spiellogik und KI-Spieler
-- `public/js/callers.js` enthält die Personas, die Prompts und eine Demo-Engine ohne LLM
+- `public/js/main.js` enthält Fenstermanager, Taskleiste und Spiellogik
+- `public/js/ai.js` enthält den Anrufer (Prompt, Gedächtnis, Ereignisse); `public/js/callers.js` die Personas und Spielregeln; `public/js/speech.js` die Spracheingabe
 - `public/js/ollama.js` nutzt `/api/chat` mit `format: "json"` und kommt auch mit `<think>`-Blöcken klar
 - Das Spiel erzwingt die Regeln: Ein Modell bekommt den echten Code erst, wenn das Vertrauen hoch genug ist
