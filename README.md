@@ -86,11 +86,12 @@ statt über die oft unzuverlässige Zahl des Modells. So spielen auch kleine Mod
 
 Echte Support-Betrüger schalten sich per Fernwartung auf den Bildschirm – das greift das Spiel als Satire auf.
 In der **RemoteDesk**-App schaltest du dich **nur mit Zustimmung des (erfundenen) Anrufers** auf seinen
-**komplett zufällig erzeugten NPC-Desktop** und findest dort den Gutschein-Code bzw. die Kartendaten, die er
-dir ohnehin geben wollte – ein alternativer Weg zum Code, statt ihn vorlesen zu lassen.
+**komplett zufällig erzeugten NPC-Desktop**. Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.**
 
-Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.** Die „Dateien" sind harmlose
-Platzhalter, und der Ordner **„Privat" ist bewusst gesperrt** – wer darin herumschnüffelt, verliert Vertrauen.
+- **Gutschein-Code:** liegt **nicht** auf dem PC. Den musst du dir weiter am Telefon geben lassen – also Vertrauen aufbauen und danach fragen.
+- **Online-Banking** (bei Kreditkarten-Anrufern): mit einer 4-stelligen PIN gesichert. Die knackst du im **Hack-Minispiel** (Mastermind: 🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle). Danach kannst du die Kartendaten ins Card Terminal übernehmen.
+- **Ordner „Privat":** offen, mit harmlosen erfundenen Alltags-Infos (z. B. „Enkel: Timmy, 27 Jahre", Katzenname, Hobby). Die kannst du am Telefon nutzen, um Vertrauen aufzubauen.
+
 Kotlana OS ist Satire über Betrugsmaschen, kein Werkzeug, um echte Menschen auszuspähen.
 
 ### 🦙 Dein Ollama-Modell ist der Anrufer
@@ -127,7 +128,7 @@ Damit sind die Daten sofort im Gift Card Vault bzw. Card Terminal, und du klicks
 
 ### 🔊 Sounds
 
-Hochfahr-Sound (Kotlana OS startet per Power-Knopf), Klingeln, Abheben, Auflegen mit Besetztzeichen, falscher Code und beim erfolgreichen Scam Kasse plus **„Oh yes!“**.
+Hochfahr-Sound (Kotlana OS startet per Power-Knopf), Klingeln, Abheben, Auflegen mit Besetztzeichen, falscher Code und beim erfolgreichen Scam ein fettes **„Cha-Ching"** (Kassenschub, Münzkaskade, Fanfare) plus **„Oh yes!“**.
 Alle Sounds werden live erzeugt. Lautstärke und an/aus stellst du in den Einstellungen ein.
 
 ### 🎤 Spracheingabe

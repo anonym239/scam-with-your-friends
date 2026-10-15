@@ -66,12 +66,24 @@ export const sfx = {
   blip() { tone(740, 0, 0.07, { gain: 0.05 }); tone(980, 0.06, 0.08, { gain: 0.04 }); },
   // falscher Code
   error() { tone(180, 0, 0.25, { type: 'sawtooth', gain: 0.08 }); tone(140, 0.12, 0.3, { type: 'sawtooth', gain: 0.08 }); },
-  // Kasse: Münzen + Glocke, dann "Oh yes!"
+  // Kasse: fettes "Cha-Ching" – Kassenschub, Münzkaskade, glitzernde Glocken + Fanfare, dann "Oh yes!"
   cash() {
-    noise(0, 0.08, 0.2, 5000);
-    [0, 0.08, 0.16].forEach((t, i) => tone(1800 + i * 300, t, 0.25, { type: 'square', gain: 0.05 }));
-    tone(2637, 0.28, 0.9, { gain: 0.12 }); tone(3520, 0.28, 0.7, { gain: 0.07 });
-    setTimeout(ohYes, 450);
+    // 1. "Ka-ching" Kassen-Anschlag
+    noise(0, 0.05, 0.3, 2600);
+    tone(1200, 0, 0.09, { type: 'square', gain: 0.07 });
+    noise(0.11, 0.06, 0.28, 6500);
+    tone(2093, 0.11, 0.5, { gain: 0.13 }); tone(2637, 0.11, 0.5, { gain: 0.1 }); tone(3136, 0.11, 0.45, { gain: 0.08 });
+    // 2. Münzen prasseln
+    for (let i = 0; i < 9; i++) {
+      const t = 0.22 + i * 0.045 + Math.random() * 0.02;
+      tone(2400 + Math.random() * 1600, t, 0.08, { type: 'triangle', gain: 0.05 });
+    }
+    // 3. Aufsteigende Fanfare (Dur-Arpeggio C-E-G-C)
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.34 + i * 0.09, 0.3, { type: 'square', gain: 0.09 }));
+    tone(1047, 0.7, 0.6, { gain: 0.11 }); tone(1319, 0.7, 0.6, { gain: 0.08 }); tone(1568, 0.7, 0.55, { gain: 0.07 });
+    // 4. Glitzer obendrauf
+    for (let i = 0; i < 6; i++) tone(3000 + i * 600, 0.72 + i * 0.05, 0.12, { type: 'triangle', gain: 0.03 });
+    setTimeout(ohYes, 820);
   },
 };
 

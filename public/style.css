@@ -177,8 +177,11 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .rd-panel h3 { margin: 0 0 8px; }
 .rd-panel pre { background: #f3f4f6; padding: 10px 12px; border-radius: 4px; white-space: pre-wrap; margin: 0; font-size: 14px; }
 .rd-code { font-size: 20px !important; font-weight: 800; letter-spacing: 1px; color: #0f5132; }
-.rd-locked { border: 2px solid #e0353f; }
-.rd-locked h3 { color: #b91c1c; }
+.rd-hackrow { display: flex; gap: 8px; margin: 10px 0; }
+.rd-pin { width: 120px; letter-spacing: 8px; text-align: center; font-size: 22px !important; font-weight: 800; }
+.rd-guesses { display: flex; flex-direction: column; gap: 4px; }
+.rd-guess { font-family: ui-monospace, monospace; font-size: 18px; letter-spacing: 3px; }
+.rd-pegs { letter-spacing: 1px; }
 
 /* ---------- Taskbar ---------- */
 #taskbar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: var(--bar); display: flex; align-items: stretch; color: #fff; z-index: 5000; }

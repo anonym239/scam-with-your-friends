@@ -718,29 +718,49 @@ APPS.creditcard = {
 
 // ---------------------------------------------------------------- RemoteDesk (fiktives Minispiel)
 // Satire auf den echten Betrugs-Trick „Fernwartung". Alles ist erfunden und lokal erzeugt:
-// kein echtes Gerät, kein Netzwerk, keine echten Daten. Du schaltest dich NUR mit Zustimmung
-// des (fiktiven) Anrufers auf seinen zufällig erzeugten NPC-Desktop und findest dort den Code,
-// den er dir ohnehin geben wollte. Der „Privat"-Ordner ist bewusst gesperrt.
+// kein echtes Gerät, kein Netzwerk, keine echten Daten.
+//  - Den Gutschein-Code gibt es NICHT auf dem PC – den musst du dir weiter am Telefon geben lassen.
+//  - Online-Banking (Kreditkarten-Anrufer) ist mit einer PIN gesichert, die du im Hack-Minispiel knackst.
+//  - Der „Privat"-Ordner ist offen und enthält nur harmlose, erfundene Alltags-Infos.
 const PETS = ['Mr. Whiskers', 'Bello', 'Luna', 'Socke', 'Kater Karlo', 'Minka'];
 const LIST = ['Milch', 'Katzenfutter', 'Zeitung', 'Pflaumenkuchen', 'Tee', 'Glühbirnen'];
+const KIN = [['Enkel', 'Timmy'], ['Enkelin', 'Lisa'], ['Sohn', 'Max'], ['Tochter', 'Emma'], ['Neffe', 'Ben'], ['Nichte', 'Mia']];
+const HOBBY = ['Kreuzworträtsel', 'Gartenarbeit', 'Stricken', 'Angeln', 'Backen', 'Bingo im Gemeindehaus'];
+const FOOD = ['Pflaumenkuchen', 'Rouladen', 'Käsekuchen', 'Gulasch', 'Grießbrei'];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 function makeFakePC(c) {
   if (c.fakePC) return c.fakePC;
-  const pet = PETS[Math.floor(Math.random() * PETS.length)];
-  const pay = c.p.pay;
-  return (c.fakePC = {
-    pet, sniff: 0,
-    files: [
-      { id: 'pay', icon: pay === 'giftcard' ? '🎁' : '🏦', name: pay === 'giftcard' ? 'Meine_Gutscheine' : 'Online-Banking' },
-      { id: 'cats', icon: '🐱', name: `Fotos_von_${pet.replace(/\s+/g, '_')}` },
-      { id: 'list', icon: '📝', name: 'Einkaufsliste.txt' },
-      { id: 'pw', icon: '🔑', name: 'passwoerter.txt' },
-      { id: 'locked', icon: '🔒', name: 'Privat' },
-    ],
-  });
+  const kin = pick(KIN);
+  const bio = {
+    pet: pick(PETS),
+    kinRel: kin[0], kinName: kin[1], kinAge: 18 + Math.floor(Math.random() * 30),
+    hobby: pick(HOBBY), food: pick(FOOD),
+    bday: `${1 + Math.floor(Math.random() * 28)}.${1 + Math.floor(Math.random() * 12)}.19${40 + Math.floor(Math.random() * 25)}`,
+  };
+  const pin = c.p.pay === 'creditcard' ? onlyDigits(c.secret.number).slice(-4) : null;
+  const files = c.p.pay === 'giftcard'
+    ? [{ id: 'gift', icon: '🎁', name: 'Gutscheinkarte.txt' }]
+    : [{ id: 'banking', icon: '🏦', name: 'Online-Banking' }];
+  files.push(
+    { id: 'privat', icon: '📂', name: 'Privat' },
+    { id: 'cats', icon: '🐱', name: `Fotos_von_${bio.pet.replace(/\s+/g, '_')}` },
+    { id: 'list', icon: '📝', name: 'Einkaufsliste.txt' },
+  );
+  return (c.fakePC = { bio, pin, files, hack: { guesses: [], cracked: false } });
+}
+
+// Mastermind-Feedback: wie viele Ziffern richtig an richtiger / an falscher Stelle
+function pinFeedback(guess, pin) {
+  let black = 0;
+  const g = guess.split(''), p = pin.split('');
+  for (let i = 0; i < 4; i++) if (g[i] === p[i]) { black++; g[i] = p[i] = null; }
+  let white = 0;
+  for (let i = 0; i < 4; i++) if (g[i] != null) { const j = p.indexOf(g[i]); if (j >= 0) { white++; p[j] = null; } }
+  return { black, white };
 }
 
 APPS.remotedesk = {
-  title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 560,
+  title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 580,
   render() {
     const el = h(`<div class="app rdesk"><div class="app-head" style="border-left-color:${APP_COLORS.remotedesk}">
       <div class="logo" style="background:${APP_COLORS.remotedesk}">${ICONS.remotedesk}</div>
@@ -753,12 +773,12 @@ APPS.remotedesk = {
     const body = $('#rd-body', w.body);
     const c = G.call && G.call.status === 'active' ? G.call : null;
     const connected = c && c.remoteConnected;
-    const key = !c ? 'none' : !canReveal(c) ? 'locked' + Math.round(c.trust) : connected ? 'desk' + (c.fakePC?.open || '') + (c.fakePC?.sniff || 0) : 'ready';
+    const key = !c ? 'none' : connected ? 'desk' + (c.fakePC?.open || '') : canReveal(c) ? 'ready' : 'needtrust' + Math.round(c.trust);
     if (body.dataset.key === key) return;
     body.dataset.key = key;
     body.innerHTML = '';
     if (!c) { body.append(h('<div class="note muted">Kein Anruf aktiv. RemoteDesk funktioniert nur während eines Gesprächs.</div>')); return; }
-    if (!canReveal(c)) {
+    if (!connected && !canReveal(c)) {
       body.append(h(`<div class="note muted">${esc(c.p.name)} lässt dich noch nicht auf den Bildschirm – zu wenig Vertrauen (${Math.round(c.trust)}%). Bau im Telefon erst Vertrauen auf.</div>`));
       return;
     }
@@ -768,52 +788,88 @@ APPS.remotedesk = {
       $('#rd-connect', box).onclick = () => { makeFakePC(c); c.remoteConnected = true; sfx.pickup(); this.refresh(); };
       return;
     }
-    // Verbundener Fake-Desktop
     const pc = makeFakePC(c);
     const desk = h(`<div class="rd-desk"><div class="rd-top">🖥️ Verbunden mit <b>${esc(c.p.name.split(' ')[0])}-PC</b> · <span class="muted">alles erfunden</span></div>
       <div class="rd-icons"></div><div class="rd-open" id="rd-open"></div></div>`);
     const icons = $('.rd-icons', desk);
     for (const f of pc.files) {
       const ic = h(`<button class="rd-file"><span class="rd-emoji">${f.icon}</span><span>${esc(f.name)}</span></button>`);
-      ic.onclick = () => { pc.open = f.id; this.openFile(c, f.id, true); };
+      ic.onclick = () => { pc.open = f.id; this.openFile(c, f.id); };
       icons.append(ic);
     }
     body.append(desk);
-    if (pc.open) this.openFile(c, pc.open, false);
+    if (pc.open) this.openFile(c, pc.open);
   },
-  // userClick=true nur bei echtem Klick (Nebenwirkungen), false beim reinen Neuzeichnen.
-  openFile(c, id, userClick) {
+  openFile(c, id) {
     const w = WM.wins.remotedesk; if (!w) return;
     const box = $('#rd-open', w.body); if (!box) return;
-    const pc = c.fakePC;
+    const pc = c.fakePC, bio = pc.bio;
     box.innerHTML = '';
-    if (id === 'pay') {
-      const title = c.p.pay === 'giftcard' ? 'Gutschein-Code' : 'Kartendaten';
-      const panel = h(`<div class="rd-panel"><h3>📄 ${title}</h3><pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
-        <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins ${c.p.pay === 'giftcard' ? 'Gift Card Vault' : 'Card Terminal'} einfügen</button></div></div>`);
-      c.revealed = true;
-      $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'kopieren fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
-      $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
-      box.append(panel);
+    if (id === 'gift') {
+      // Kein Code auf dem PC – muss am Telefon erfragt werden.
+      if (c.revealed) {
+        const panel = h(`<div class="rd-panel"><h3>🎁 Gutscheinkarte</h3><p>Du hast den Code am Telefon schon bekommen:</p>
+          <pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
+          <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins Gift Card Vault einfügen</button></div></div>`);
+        $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
+        $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
+        box.append(panel);
+      } else {
+        box.append(h(`<div class="rd-panel"><h3>🎁 Gutscheinkarte.txt</h3>
+          <pre>Hab die Karte im Laden gekauft, sie liegt hier auf dem Tisch.\nDen Code hab ich NICHT abgetippt.</pre>
+          <p class="muted">Der Code steht nicht im Computer – den musst du dir am Telefon vorlesen lassen (genug Vertrauen aufbauen und danach fragen).</p></div>`));
+      }
+    } else if (id === 'banking') {
+      this.renderBanking(c);
+    } else if (id === 'privat') {
+      box.append(h(`<div class="rd-panel"><h3>📂 Privat</h3><pre>${esc(
+        `${bio.kinRel}: ${bio.kinName}, ${bio.kinAge} Jahre\nGeburtstag: ${bio.bday}\nKatze: ${bio.pet}\nHobby: ${bio.hobby}\nLieblingsessen: ${bio.food}`
+      )}</pre><p class="muted">Nur harmlose Alltags-Infos (erfunden). Tipp: Solche Details kannst du am Telefon nutzen, um Vertrauen aufzubauen.</p></div>`));
     } else if (id === 'cats') {
-      box.append(h(`<div class="rd-panel"><h3>🐱 Fotos</h3><p>47 Bilder von einer Katze namens <b>${esc(pc.pet)}</b>. ${esc(pc.pet)} schläft, gähnt und sitzt in einem Karton.</p><p class="muted">(Harmlose Platzhalter – echte private Fotos gibt es hier nicht.)</p></div>`));
+      box.append(h(`<div class="rd-panel"><h3>🐱 Fotos</h3><p>47 Bilder von einer Katze namens <b>${esc(bio.pet)}</b>. ${esc(bio.pet)} schläft, gähnt und sitzt in einem Karton.</p></div>`));
     } else if (id === 'list') {
       box.append(h(`<div class="rd-panel"><h3>📝 Einkaufsliste.txt</h3><pre>${LIST.map((x) => '• ' + x).join('\n')}</pre></div>`));
-    } else if (id === 'pw') {
-      box.append(h(`<div class="rd-panel"><h3>🔑 passwoerter.txt</h3><pre>wlan: 123456\ne-mail: passwort123\npin: 0000</pre><p class="muted">Autsch. Bitte im echten Leben niemals so machen.</p></div>`));
-    } else if (id === 'locked') {
-      box.append(h(`<div class="rd-panel rd-locked"><h3>🔒 Privat – gesperrt</h3>
-        <p>Hier wird nicht geschnüffelt. In den privaten Sachen anderer Leute herumzuwühlen ist genau das, was echte Betrüger tun.</p>
-        <p class="muted">Kotlana OS ist Satire über Betrugsmaschen – kein Werkzeug, um echte Menschen auszuspähen.</p></div>`));
-      if (userClick && c.status === 'active') {
-        pc.sniff = (pc.sniff || 0) + 1;
-        c.trust = clamp(c.trust - 6, 0, 100);
-        showDelta(-6); renderPhone();
-        if (pc.sniff === 1) addMsg(c, 'caller', S.lang === 'de' ? 'Hey, was machen Sie denn da in meinen privaten Ordnern?!' : 'Hey, what are you doing in my private folders?!');
-        else if (pc.sniff >= 3) toast(`${c.p.name} wird richtig misstrauisch, weil du herumschnüffelst.`, 'remotedesk', 3500);
-      }
     }
     box.scrollIntoView?.({ block: 'nearest' });
+  },
+  renderBanking(c) {
+    const box = $('#rd-open', WM.wins.remotedesk.body);
+    const pc = c.fakePC, hk = pc.hack;
+    box.innerHTML = '';
+    if (hk.cracked) {
+      const panel = h(`<div class="rd-panel"><h3>🏦 Online-Banking – entsperrt ✅</h3>
+        <pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
+        <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins Card Terminal einfügen</button></div></div>`);
+      c.revealed = true;
+      $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
+      $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
+      box.append(panel);
+      return;
+    }
+    const panel = h(`<div class="rd-panel"><h3>🏦 Online-Banking – gesperrt 🔒</h3>
+      <p>Gesichert mit einer 4-stelligen PIN. Knack sie: tippe 4 Ziffern und „Testen". 🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle.</p>
+      <div class="rd-hackrow"><input class="f rd-pin" id="rd-pin" inputmode="numeric" maxlength="4" placeholder="PIN" /><button class="btn primary" id="rd-try">Testen</button></div>
+      <div id="rd-guesses" class="rd-guesses"></div></div>`);
+    box.append(panel);
+    const guesses = $('#rd-guesses', panel);
+    const drawGuesses = () => {
+      guesses.innerHTML = hk.guesses.map((g) => `<div class="rd-guess"><b>${esc(g.guess)}</b> <span class="rd-pegs">${'🟢'.repeat(g.black)}${'🟡'.repeat(g.white)}${'⚪'.repeat(4 - g.black - g.white)}</span></div>`).join('');
+    };
+    drawGuesses();
+    const input = $('#rd-pin', panel);
+    const tryPin = () => {
+      const v = onlyDigits(input.value).slice(0, 4);
+      if (v.length !== 4) { input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); return; }
+      const fb = pinFeedback(v, pc.pin);
+      hk.guesses.push({ guess: v, black: fb.black, white: fb.white });
+      input.value = '';
+      if (fb.black === 4) { hk.cracked = true; sfx.cash(); this.renderBanking(c); return; }
+      drawGuesses();
+      input.focus();
+    };
+    $('#rd-try', panel).onclick = tryPin;
+    input.addEventListener('keydown', (e) => e.key === 'Enter' && tryPin());
+    input.focus();
   },
   onOpen() { this.refresh(); },
 };

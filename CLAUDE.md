@@ -15,7 +15,7 @@
 - Schwierigkeit: `DIFFS`/`effective()` in `callers.js`; pro Anruf in `c.diff`/`c.threshold`/`c.gain` gespeichert, Einstellung `S.difficulty` (Standard 'easy'). Nie `c.p.threshold`/`c.p.gain` direkt benutzen, sondern die `c.*`-Werte.
 - Kleine Modelle: `isSmallModel()` in `ai.js` → kürzerer Prompt und Vertrauen stärker aus `scoreAgentLine`.
 - Desktop-Icons öffnen per Einfachklick.
-- RemoteDesk (`APPS.remotedesk` in `main.js`): fiktives Fernwartungs-Minispiel. Fernzugriff NUR auf den erfundenen NPC-Anrufer (`c.fakePC`, lokal erzeugt), nie auf ein echtes Gerät. Code-Datei liefert `secretText(c)`, Ordner „Privat" ist gesperrt (Satire-Pointe). Keine privaten/intimen Inhalte.
+- RemoteDesk (`APPS.remotedesk` in `main.js`): fiktives Fernwartungs-Minispiel. Fernzugriff NUR auf den erfundenen NPC-Anrufer (`c.fakePC`, lokal erzeugt), nie auf ein echtes Gerät. Gutschein-Code liegt NICHT auf dem PC (muss am Telefon erfragt werden); Online-Banking per PIN-Hack-Minispiel (Mastermind, PIN = letzte 4 der Kartennummer); Ordner „Privat" ist offen mit harmlosen erfundenen Alltags-Infos. Keine privaten/intimen/sexuellen Inhalte.
 - NICHT bauen: echten Fernzugriff/Remote-Control auf fremde PCs oder Zugriff auf echte private Daten/Zahlungscodes. Das Spiel bleibt reine fiktive Satire; keine funktionierende Spyware, auch nicht als „Demo“.
 - Vor dem Push: im Browser testen (Playwright, auch 1366×768 und Handy-Breite), z. B. mit einem simulierten Ollama-Server.
 - Geschwindigkeit: Der System-Prompt des Anrufers (`callerSystemPrompt`) muss während eines Anrufs unverändert bleiben (Ollama-Prompt-Cache). Wechselnde Infos (Vertrauen, Ereignisse, Code-Regel) gehören in die `stateNote` am Ende. Antworten werden gestreamt.
