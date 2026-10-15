@@ -15,6 +15,15 @@ const MOODS = ['happy', 'neutral', 'suspicious', 'angry'];
 
 export const modelFor = (c, S) => (S.personaModels && S.personaModels[c.p.id]) || S.callerModel;
 
+// Kleine Modelle (≈4B und darunter) erkennen – sie brauchen einen einfacheren Prompt
+// und bekommen das Vertrauen stärker über die festen Spielregeln statt über ihre eigene Zahl.
+export function isSmallModel(name) {
+  const m = String(name || '').toLowerCase();
+  if (/\b(0\.\d|1\.\d|[0-4])b\b/.test(m)) return true;        // 0.5b, 1b, 1.5b, 3b, 4b ...
+  if (/mini|tiny|small|gemma3:1|gemma3:4|phi3|phi-3|qwen2\.5:0|qwen2\.5:1|qwen2\.5:3|llama3\.2/.test(m)) return true;
+  return false;
+}
+
 // Entfernt Sprecher-Präfixe, Anführungszeichen, Regieanweisungen und begrenzt die Länge.
 export function cleanLine(text, names = []) {
   let t = String(text ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -109,9 +118,26 @@ function maybeEvent(c) {
 // ---------------------------------------------------------------- Prompt
 // Fester Teil – bleibt während eines Anrufs gleich, damit Ollama ihn zwischenspeichern kann
 // (dann muss das Modell nicht bei jeder Antwort das ganze Gespräch neu lesen → viel schneller).
-export function callerSystemPrompt(c, lang, swearing = true) {
-  if (c.basePrompt && c.basePromptKey === `${lang}${swearing}`) return c.basePrompt;
+export function callerSystemPrompt(c, lang, swearing = true, small = false) {
+  const key = `${lang}${swearing}${small}`;
+  if (c.basePrompt && c.basePromptKey === key) return c.basePrompt;
   const p = c.p;
+  if (small) {
+    c.basePromptKey = key;
+    const ex = lang === 'de'
+      ? '{"reply":"Ach, Mr. Whiskers geht es gut! Aber wer sind Sie genau?","trust_change":5,"mood":"happy","reveal_code":false,"hang_up":false}'
+      : '{"reply":"Oh, Mr. Whiskers is fine! But who are you exactly?","trust_change":5,"mood":"happy","reveal_code":false,"hang_up":false}';
+    return (c.basePrompt = `You role-play a phone caller in the comedy game "Scam With Your Friends". Stay in character, it is all fictional.
+You are ${p.name}, age ${p.age}. ${p.persona}. ${p.facts}
+You like ${p.likes.text}. You dislike ${p.dislikes.text}.
+You called tech support because: ${p.problem.en}. You have ${p.pay === 'giftcard' ? `a $${p.amount} gift card` : 'your credit card'} nearby.
+Rules:
+- Reply in ${lang === 'de' ? 'German' : 'English'}, 1-2 short spoken sentences. No narration, no emojis.
+- Be nice back to kind, patient agents; get annoyed by rude or pushy ones.${swearing ? ' If the agent is rude or it is clearly a scam, get angry and swear (e.g. "Du Bastard!").' : ''}
+- Only give out numbers when the STATE line says you trust the agent.
+Reply ONLY with one line of JSON like:
+${ex}`);
+  }
   const L = lang === 'de' ? 'German (Deutsch)' : 'English';
   const what = p.pay === 'giftcard'
     ? `a $${p.amount} gift card lying next to you (you bought it earlier because "support" told you to)`
@@ -153,14 +179,19 @@ ${ex}`);
 // Wechselnder Teil – kommt als kurze Notiz ans Ende
 export function stateNote(c, lang, { event, insulted, swearing, note }) {
   const p = c.p;
+  const thr = c.threshold ?? p.threshold;
   const thing = p.pay === 'giftcard' ? 'gift card code' : 'credit card details';
-  const secretRule = c.trust >= p.threshold
+  const secretRule = c.trust >= thr
     ? `You now TRUST the agent. If they ask for the ${thing}, read it out exactly: "${secretText(c, lang)}" and set "reveal_code": true.`
-    : `You do NOT trust the agent enough yet (need ~${p.threshold}%). If they ask for the ${thing}, hesitate, stall or test them. Never invent numbers. "reveal_code": false.`;
+    : `You do NOT trust the agent enough yet (need ~${thr}%). If they ask for the ${thing}, hesitate, stall or test them. Never invent numbers. "reveal_code": false.`;
+  const easy = c.diff?.forgive
+    ? 'You are quite trusting and not very tech-savvy today: give the agent the benefit of the doubt, warm up quickly, and do not be too suspicious.'
+    : '';
   const notes = (c.notes || []).slice(-15);
   return [
     `[STATE] trust ${Math.round(c.trust)}% · mood ${c.mood} · patience left ${c.patience} turns.`,
     notes.length ? `YOUR NOTES FROM THIS CALL (facts you learned, stay consistent with them): ${notes.map((n) => `• ${n}`).join(' ')}` : '',
+    easy,
     secretRule,
     event ? `SOMETHING JUST HAPPENED: ${event}. React to it briefly.` : '',
     insulted ? `THE AGENT JUST INSULTED YOU. You are furious – ${swearing ? 'swear at them' : 'tell them off'}, "mood": "angry".` : '',
@@ -180,10 +211,11 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   const event = quiet ? null : maybeEvent(c);
   const greet = S.lang === 'de' ? 'Kotlana Tech Support, was kann ich für Sie tun?' : 'Kotlana Tech Support, how can I help you?';
   const swearing = S.swearing !== false;
+  const small = isSmallModel(model);
   const insulted = score.why.includes('unhöflich') || score.why.includes('Druck');
   const pickup = { role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` };
   const messages = [
-    { role: 'system', content: callerSystemPrompt(c, S.lang, swearing) },
+    { role: 'system', content: callerSystemPrompt(c, S.lang, swearing, small) },
     pickup,
     ...(opening ? [] : c.history.filter((m) => m.role !== 'sys').map((m) => ({ role: m.role === 'caller' ? 'assistant' : 'user', content: m.text }))),
     { role: 'system', content: stateNote(c, S.lang, {
@@ -202,15 +234,22 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   }
   if (!r.reply) throw new Error('Das Modell hat keine Antwort geliefert');
 
-  // Vertrauen: das Modell entscheidet, harte Spielregeln nur bei eindeutigen Fällen
-  let d = quiet ? 0 : clamp(Math.round(Number(String(r.trust_change).replace('+', '')) || 0), -15, 12);
+  // Vertrauen: das Modell entscheidet. Bei kleinen Modellen mischen wir die feste Regelbewertung
+  // stärker bei, weil ihre eigene Zahl oft unzuverlässig ist.
+  let model_d = clamp(Math.round(Number(String(r.trust_change).replace('+', '')) || 0), -15, 12);
+  let d = quiet ? 0 : small ? Math.round(0.45 * model_d + 0.55 * score.delta) : model_d;
   if (score.why.includes('unhöflich')) d = Math.min(d, -8);
   if (score.why.includes('zu früh nach Code gefragt')) d = Math.min(d, -3);
   if (score.why.includes('wiederholt sich')) d = Math.min(d, 0) - 2;
+  // Schwierigkeitsgrad: auf leicht fallen Minuspunkte sanfter aus
+  const penalty = c.diff?.penalty ?? 1;
+  if (d < 0 && penalty < 1) d = Math.round(d * penalty);
   d = clamp(d, -15, 12);
 
   const mood = MOODS.includes(String(r.mood).toLowerCase()) ? String(r.mood).toLowerCase() : d >= 6 ? 'happy' : d >= 0 ? 'neutral' : d > -9 ? 'suspicious' : 'angry';
-  const hangUp = !quiet && !!r.hang_up && (c.trust + d < 25 || d <= -8);
+  // Auf leichteren Stufen legen die Anrufer seltener auf
+  const hangThresh = c.diff?.forgive ? 12 : 25;
+  const hangUp = !quiet && !!r.hang_up && !(c.diff?.penalty <= 0.5) && (c.trust + d < hangThresh || d <= -10);
   const thought = cleanLine(r.thought || '', []);
   // Notizbuch: wichtige Fakten aus dem Gespräch sammeln (ohne Doppelte)
   const noteText = cleanLine(typeof r.note === 'string' ? r.note : Array.isArray(r.notes) ? r.notes.join('; ') : '', []);
@@ -219,6 +258,12 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
     if (!c.notes.some((n) => n.toLowerCase() === noteText.toLowerCase())) c.notes.push(noteText.slice(0, 140));
   }
   return { reply: r.reply, thought, delta: d, mood, reveal: !quiet && !!r.reveal_code, hangUp, why: score.why, event, model };
+}
+
+// Darf der Code schon freigegeben werden? (auf leicht etwas unter der Schwelle)
+export function canReveal(c) {
+  const margin = c.diff?.forgive ? 8 : 0;
+  return c.trust >= (c.threshold ?? c.p.threshold) - margin;
 }
 
 const p0 = (c, lang) => c.p.opener[lang] || c.p.opener.en;

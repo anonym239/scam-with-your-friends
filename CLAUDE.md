@@ -12,6 +12,10 @@
 - Die Kamera zeigt keine Untertitel (die waren nur im Trailer).
 - Sounds in `public/js/sounds.js` (Web Audio, keine Dateien). Das OS startet per Power-Knopf, weil Browser Töne erst nach einem Klick erlauben.
 - Anrufer dürfen fluchen, wenn der Spieler frech wird (Einstellung „swearing“, Standard an), aber niemals mit Beleidigungen gegen Herkunft, Religion usw.
+- Schwierigkeit: `DIFFS`/`effective()` in `callers.js`; pro Anruf in `c.diff`/`c.threshold`/`c.gain` gespeichert, Einstellung `S.difficulty` (Standard 'easy'). Nie `c.p.threshold`/`c.p.gain` direkt benutzen, sondern die `c.*`-Werte.
+- Kleine Modelle: `isSmallModel()` in `ai.js` → kürzerer Prompt und Vertrauen stärker aus `scoreAgentLine`.
+- Desktop-Icons öffnen per Einfachklick.
+- NICHT bauen: echten Fernzugriff/Remote-Control auf fremde PCs oder Zugriff auf echte private Daten/Zahlungscodes. Das Spiel bleibt reine fiktive Satire; keine funktionierende Spyware, auch nicht als „Demo“.
 - Vor dem Push: im Browser testen (Playwright, auch 1366×768 und Handy-Breite), z. B. mit einem simulierten Ollama-Server.
 - Geschwindigkeit: Der System-Prompt des Anrufers (`callerSystemPrompt`) muss während eines Anrufs unverändert bleiben (Ollama-Prompt-Cache). Wechselnde Infos (Vertrauen, Ereignisse, Code-Regel) gehören in die `stateNote` am Ende. Antworten werden gestreamt.
 - Chrome-Spracherkennung: kein `rec.phrases` setzen (führt zu "phrases-not-supported").

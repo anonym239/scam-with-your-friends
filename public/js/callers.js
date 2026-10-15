@@ -94,6 +94,28 @@ export const PERSONAS = [
   },
 ];
 
+// Schwierigkeitsgrad: wie leicht die Anrufer zu überzeugen sind. Einstellbar in den Einstellungen.
+export const DIFFS = {
+  verysoft: { label: 'Sehr leicht', startBonus: 25, threshold: -25, gain: 2.2, patience: 10, penalty: 0.4, forgive: true },
+  easy:     { label: 'Leicht',      startBonus: 15, threshold: -15, gain: 1.7, patience: 6,  penalty: 0.6, forgive: true },
+  normal:   { label: 'Normal',      startBonus: 5,  threshold: -5,  gain: 1.3, patience: 3,  penalty: 0.8, forgive: false },
+  hard:     { label: 'Schwer',      startBonus: 0,  threshold: 0,   gain: 1.0, patience: 0,  penalty: 1.0, forgive: false },
+};
+export function diffOf(name) { return DIFFS[name] || DIFFS.easy; }
+
+// Effektive Werte für einen Anruf, je nach Schwierigkeitsgrad
+export function effective(p, diffName) {
+  const d = diffOf(diffName);
+  return {
+    threshold: Math.max(25, p.threshold + d.threshold),
+    gain: p.gain * d.gain,
+    patience: p.patience + d.patience,
+    startBonus: d.startBonus,
+    penalty: d.penalty,
+    forgive: d.forgive,
+  };
+}
+
 const rnd = (n) => Math.floor(Math.random() * n);
 const digits = (n) => Array.from({ length: n }, () => rnd(10)).join('');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -161,7 +183,8 @@ export function scoreAgentLine(call, text) {
   if (KW.pressure.test(t)) { d -= 9; why.push('Druck'); }
   if (KW.rude.test(t)) { d -= 15; why.push('unhöflich'); }
   const asks = KW.ask.test(t);
-  if (asks && call.trust < p.threshold - 8) { d -= 7; why.push('zu früh nach Code gefragt'); }
+  const thr = call.threshold ?? p.threshold;
+  if (asks && call.trust < thr - 8) { d -= 7; why.push('zu früh nach Code gefragt'); }
   const earlier = call.history.filter((m) => m.role === 'agent').slice(0, -1).map((m) => m.text);
   if (earlier.some((x) => similarity(x, t) > 0.75)) { d -= 5; why.push('wiederholt sich'); }
   if (t.trim().length < 8) { d -= 2; why.push('zu kurz'); }

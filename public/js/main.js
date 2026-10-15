@@ -1,9 +1,9 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
 import { listModels, version, warmUp } from './ollama.js';
-import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard } from './callers.js';
+import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, effective, DIFFS } from './callers.js';
 import { sfx, configureSounds } from './sounds.js';
-import { callerTurn, memory, modelFor } from './ai.js';
+import { callerTurn, memory, modelFor, canReveal } from './ai.js';
 import { startRecognition, MIC_LANGS } from './speech.js';
 
 // ---------------------------------------------------------------- Helpers
@@ -26,7 +26,7 @@ NIEMALS: drohen, hetzen, beleidigen (Vertrauen sinkt!)`;
 
 const DEFAULTS = {
   base: '/ollama', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
-  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: false, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, playerName: 'Agent', script: DEFAULT_SCRIPT,
+  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: false, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, difficulty: 'easy', playerName: 'Agent', script: DEFAULT_SCRIPT,
 };
 const store = {
   get(k, d) { try { const v = localStorage.getItem('kotlana:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -139,11 +139,9 @@ function iconEl(id) {
     $('.ic svg', el).style.cssText = 'width:64px;height:64px';
   }
   if (id === 'scamazon') $('.ic', el).append(h('<span class="badge">!</span>'));
-  el.onclick = () => { $$('.icon').forEach((i) => i.classList.remove('sel')); el.classList.add('sel'); };
-  el.ondblclick = () => WM.open(id);
+  // Einfachklick öffnet die App (intuitiver im Browser); Doppelklick schadet nicht.
+  el.onclick = () => { $$('.icon').forEach((i) => i.classList.remove('sel')); el.classList.add('sel'); WM.open(id); };
   el.addEventListener('keydown', (e) => e.key === 'Enter' && WM.open(id));
-  // Touch: einfacher Tap öffnet
-  el.addEventListener('pointerup', (e) => e.pointerType === 'touch' && WM.open(id));
   return el;
 }
 
@@ -243,9 +241,12 @@ function ringCall() {
   const pool = PERSONAS.filter((p) => p.id !== G.lastPersona);
   const p = pool[Math.floor(Math.random() * pool.length)];
   G.lastPersona = p.id;
+  const eff = effective(p, S.difficulty);
   G.call = {
-    p, trust: clamp(p.start + (G.upgrades.badge ? 10 : 0) + memory.trustBonus(p.id), 5, 95), secret: makeSecret(p), history: [], status: 'ringing',
-    mood: memory.get(p.id)?.scammed ? 'suspicious' : 'neutral', busy: false, claimed: false, revealed: false, started: new Date(), patience: p.patience,
+    p, secret: makeSecret(p), history: [], status: 'ringing',
+    mood: memory.get(p.id)?.scammed ? 'suspicious' : 'neutral', busy: false, claimed: false, revealed: false, started: new Date(),
+    diff: eff, threshold: eff.threshold, gain: eff.gain, patience: eff.patience,
+    trust: clamp(p.start + eff.startBonus + (G.upgrades.badge ? 10 : 0) + memory.trustBonus(p.id), 5, 95),
   };
   G.nextCallAt = null;
   WM.open('phone'); // holt das Telefon nach vorn, auch wenn es minimiert oder verdeckt ist
@@ -345,7 +346,7 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
 
   // Upgrades verstärken positive Reaktionen
   let d = r.delta;
-  if (d > 0) d = Math.round(d * c.p.gain * (G.upgrades.charm ? 1.25 : 1) + (G.upgrades.headset ? 2 : 0));
+  if (d > 0) d = Math.round(d * c.gain * (G.upgrades.charm ? 1.25 : 1) + (G.upgrades.headset ? 2 : 0));
   const before = c.trust;
   c.trust = clamp(c.trust + d, 0, 100);
   c.mood = r.mood;
@@ -355,7 +356,7 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
 
   // Spielregel: Code nur bei genug Vertrauen – und dann exakt.
   let reply = r.reply;
-  const allowed = before >= c.p.threshold || c.trust >= c.p.threshold;
+  const allowed = canReveal(c);
   if (r.reveal && allowed) {
     const need = c.p.pay === 'giftcard' ? [onlyDigits(c.secret.code)] : [onlyDigits(c.secret.number), c.secret.cvv];
     if (!need.every((n) => onlyDigits(reply).includes(n))) reply = reply.replace(/\d[\d\s\-/]{3,}\d/g, '').trim() + ' ' + secretText(c, S.lang);
@@ -535,7 +536,7 @@ function renderPhone() {
   $('#t-pct', root).textContent = Math.round(c.trust) + '%';
   const bar = $('#t-bar', root);
   bar.style.width = c.trust + '%';
-  bar.style.background = c.trust >= c.p.threshold ? '#4ade80' : c.trust < 30 ? '#f87171' : '';
+  bar.style.background = c.trust >= c.threshold ? '#4ade80' : c.trust < 30 ? '#f87171' : '';
   $('#p-name', root).textContent = c.p.name;
   if (root.dataset.avatar !== c.p.id + c.mood) {
     $('#p-img', root).innerHTML = avatarSVG(c.p.avatar, c.mood);
@@ -745,12 +746,15 @@ APPS.scamazon = {
   render() {
     const el = h(`<div class="app"><div class="app-head" style="border-left-color:${APP_COLORS.scamazon}"><div class="logo" style="background:${APP_COLORS.scamazon}">${ICONS.scamazon}</div>
       <div><h2>Scamazon</h2><p>Upgrades für dein Call Center – bezahlt mit deinem persönlichen Geld.</p></div></div>
-      <p>Guthaben: <b id="shop-money"></b></p><div class="shop" id="shop"></div></div>`);
+      <p>Guthaben: <b id="shop-money"></b></p><div class="note muted" id="shop-note" hidden></div><div class="shop" id="shop"></div></div>`);
     return el;
   },
   refresh() {
     const w = WM.wins.scamazon; if (!w) return;
     $('#shop-money', w.body).textContent = money(G.personal);
+    const note = $('#shop-note', w.body);
+    note.hidden = G.personal > 0;
+    if (!note.hidden) note.textContent = 'Du hast noch kein Guthaben. Verdiene erst Geld mit Anrufen (PERSONAL), dann kannst du hier Upgrades kaufen.';
     const key = G.personal + JSON.stringify(G.upgrades);
     if (this.key === key) return;
     this.key = key;
@@ -830,7 +834,7 @@ APPS.browser = {
         <li>Ab genug Vertrauen nennt der Anrufer den Code bzw. die Kartendaten.</li>
         <li>Löse sie im <b>Gift Card Vault</b> oder im <b>Card Terminal</b> ein.</li>
         <li>Erreiche die <b>Quota</b> vor der Performance Review!</li></ol>
-        <p>🤖 <b>KI-Spieler:</b> Schalte unten in der Taskleiste oder in den Einstellungen um – dann spielt ein Ollama-Modell Kotlana OS komplett selbst.</p>
+        <p>🎚️ <b>Zu schwer?</b> Stell in den Einstellungen die Schwierigkeit auf „Leicht“ oder „Sehr leicht“ – dann sind die Anrufer schneller zu überzeugen.</p>
         <p class="muted">Alles ist Satire und fiktiv. Echte Betrugsmaschen gehören angezeigt – nicht gespielt.</p>`;
     } else if (page === 'news') {
       p.innerHTML = `<h2>📰 Kotlana News</h2><ul>
@@ -854,6 +858,7 @@ APPS.settings = {
         <label>Ollama-URL</label><div class="row"><input class="f" style="height:40px;font-size:15px" id="set-base" /><button class="btn" id="set-test" style="flex:none">Testen</button></div>
         <label>Status</label><div id="set-status" class="muted">–</div>
         <label>Anrufer-Modell</label><select class="f" id="set-caller"></select>
+        <label>🎚️ Schwierigkeit</label><select class="f" id="set-diff">${Object.entries(DIFFS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
         <label>Kreativität</label><div class="row" style="align-items:center"><input type="range" min="0" max="1.5" step="0.1" id="set-temp" /><span id="set-temp-v" style="flex:none;width:36px"></span></div>
         <label>Sprache der Gespräche</label><select class="f" id="set-lang"><option value="de">Deutsch</option><option value="en">English</option></select>
         <label>Dein Agent-Name</label><input class="f" style="height:40px;font-size:15px" id="set-name" />
@@ -885,6 +890,7 @@ APPS.settings = {
     $('#set-temp', b).value = S.temperature;
     $('#set-temp-v', b).textContent = S.temperature;
     $('#set-lang', b).value = S.lang;
+    $('#set-diff', b).value = S.difficulty;
     $('#set-name', b).value = S.playerName;
     $('#set-micpause', b).value = S.micPause; $('#set-micpause-v', b).textContent = S.micPause + ' s';
     $('#set-vol', b).value = S.volume; $('#set-sounds', b).checked = S.sounds;
@@ -900,6 +906,7 @@ APPS.settings = {
       : '<span class="status-dot bad"></span>Ollama nicht erreichbar – starte Ollama und klicke auf „Testen“';
     const bind = (id, key, conv = (x) => x, ev = 'change') => ($('#' + id, b)['on' + ev] = (e) => { S[key] = conv(e.target.type === 'checkbox' ? e.target.checked : e.target.value); saveSettings(); });
     bind('set-temp', 'temperature', Number, 'input'); bind('set-lang', 'lang'); bind('set-name', 'playerName', String, 'input');
+    $('#set-diff', b).onchange = (e) => { S.difficulty = e.target.value; saveSettings(); if (G.call && G.call.status === 'ringing') ringCall(); toast(`Schwierigkeit: ${DIFFS[S.difficulty].label}`, 'settings', 2500); };
     bind('set-thoughts', 'showThoughts'); bind('set-swear', 'swearing'); bind('set-miclang', 'micLang'); bind('set-micai', 'micAI'); bind('set-micsend', 'micAutoSend'); bind('set-tts', 'tts'); bind('set-cow', 'coworkers');
     $('#set-temp', b).addEventListener('input', () => ($('#set-temp-v', b).textContent = S.temperature));
     $('#set-caller', b).onchange = (e) => {

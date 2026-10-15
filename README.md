@@ -61,6 +61,18 @@ Danach wählst du in den Einstellungen dein Modell, und der erste Anruf kommt.
 
 Erreiche die **Quota**, bevor der Timer der **Performance Review** abläuft. Sonst wirst du gefeuert.
 
+### 🎚️ Schwierigkeit einstellen
+
+In den Einstellungen gibt es fünf Stufen von **Sehr leicht** bis **Schwer**. Leichtere Stufen bedeuten:
+höheres Startvertrauen, eine niedrigere Schwelle für den Code, stärkere Vertrauensgewinne, mehr Geduld,
+sanftere Abzüge bei Fehlern und selteneres Auflegen. Standard ist **Leicht**, damit man gut reinkommt.
+
+### 🧩 Kleine Modelle (3–4B)
+
+Kleine Modelle werden automatisch erkannt (z. B. `llama3.2:3b`, `qwen2.5:3b`, `gemma3:4b`). Sie bekommen dann
+einen **kürzeren, einfacheren Prompt**, und das Vertrauen wird stärker über die festen Spielregeln bestimmt
+statt über die oft unzuverlässige Zahl des Modells. So spielen auch kleine Modelle fair und flüssig.
+
 ### 🦙 Dein Ollama-Modell ist der Anrufer
 
 Du bist der Agent, und jede Person am Telefon wird live von deinem Ollama-Modell gespielt. Ohne Ollama gibt es keine Anrufe,
