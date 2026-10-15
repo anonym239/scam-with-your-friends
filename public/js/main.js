@@ -717,10 +717,11 @@ APPS.creditcard = {
 };
 
 // ---------------------------------------------------------------- RemoteDesk (fiktives Minispiel)
-// Satire auf den echten Betrugs-Trick „Fernwartung". Alles ist erfunden und lokal erzeugt:
-// kein echtes Gerät, kein Netzwerk, keine echten Daten.
-//  - Den Gutschein-Code gibt es NICHT auf dem PC – den musst du dir weiter am Telefon geben lassen.
-//  - Online-Banking (Kreditkarten-Anrufer) ist mit einer PIN gesichert, die du im Hack-Minispiel knackst.
+// Satire auf den „Fernwartungs"-Trick. Alles ist erfunden und lokal erzeugt: kein echtes Gerät,
+// kein Netzwerk, keine echten Daten.
+//  - Verbinden geht NUR mit dem Verbindungscode, den der Anrufer dir (ab genug Vertrauen) vorliest.
+//  - Gutschein-Tresor und Online-Banking sind danach per PIN-Rätsel-Minispiel geschützt – das löst du
+//    selbst, der Anrufer muss dafür nichts mehr tun oder sagen.
 //  - Der „Privat"-Ordner ist offen und enthält nur harmlose, erfundene Alltags-Infos.
 const PETS = ['Mr. Whiskers', 'Bello', 'Luna', 'Socke', 'Kater Karlo', 'Minka'];
 const LIST = ['Milch', 'Katzenfutter', 'Zeitung', 'Pflaumenkuchen', 'Tee', 'Glühbirnen'];
@@ -728,6 +729,7 @@ const KIN = [['Enkel', 'Timmy'], ['Enkelin', 'Lisa'], ['Sohn', 'Max'], ['Tochter
 const HOBBY = ['Kreuzworträtsel', 'Gartenarbeit', 'Stricken', 'Angeln', 'Backen', 'Bingo im Gemeindehaus'];
 const FOOD = ['Pflaumenkuchen', 'Rouladen', 'Käsekuchen', 'Gulasch', 'Grießbrei'];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const d3 = () => String(Math.floor(Math.random() * 900) + 100);
 function makeFakePC(c) {
   if (c.fakePC) return c.fakePC;
   const kin = pick(KIN);
@@ -737,19 +739,24 @@ function makeFakePC(c) {
     hobby: pick(HOBBY), food: pick(FOOD),
     bday: `${1 + Math.floor(Math.random() * 28)}.${1 + Math.floor(Math.random() * 12)}.19${40 + Math.floor(Math.random() * 25)}`,
   };
-  const pin = c.p.pay === 'creditcard' ? onlyDigits(c.secret.number).slice(-4) : null;
-  const files = c.p.pay === 'giftcard'
-    ? [{ id: 'gift', icon: '🎁', name: 'Gutscheinkarte.txt' }]
-    : [{ id: 'banking', icon: '🏦', name: 'Online-Banking' }];
-  files.push(
-    { id: 'privat', icon: '📂', name: 'Privat' },
-    { id: 'cats', icon: '🐱', name: `Fotos_von_${bio.pet.replace(/\s+/g, '_')}` },
-    { id: 'list', icon: '📝', name: 'Einkaufsliste.txt' },
-  );
-  return (c.fakePC = { bio, pin, files, hack: { guesses: [], cracked: false } });
+  // 4-stellige PIN des Tresors = letzte 4 Ziffern des Codes/der Kartennummer
+  const pin = onlyDigits(c.p.pay === 'giftcard' ? c.secret.code : c.secret.number).slice(-4);
+  const payFile = c.p.pay === 'giftcard'
+    ? { id: 'vault', icon: '🎁', name: 'Gutschein-Tresor' }
+    : { id: 'vault', icon: '🏦', name: 'Online-Banking' };
+  return (c.fakePC = {
+    bio, pin,
+    files: [payFile, { id: 'privat', icon: '📂', name: 'Privat' }, { id: 'cats', icon: '🐱', name: `Fotos_von_${bio.pet.replace(/\s+/g, '_')}` }, { id: 'list', icon: '📝', name: 'Einkaufsliste.txt' }],
+    hack: { guesses: [], cracked: false },
+  });
+}
+// Verbindungscode, den der Anrufer vorliest (wie eine Fernwartungs-ID)
+function remoteCode(c) {
+  if (!c.remoteCode) c.remoteCode = `${d3()} ${d3()} ${d3()}`;
+  return c.remoteCode;
 }
 
-// Mastermind-Feedback: wie viele Ziffern richtig an richtiger / an falscher Stelle
+// PIN-Rätsel-Feedback: wie viele Ziffern richtig an richtiger / an falscher Stelle
 function pinFeedback(guess, pin) {
   let black = 0;
   const g = guess.split(''), p = pin.split('');
@@ -760,11 +767,11 @@ function pinFeedback(guess, pin) {
 }
 
 APPS.remotedesk = {
-  title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 580,
+  title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 600,
   render() {
     const el = h(`<div class="app rdesk"><div class="app-head" style="border-left-color:${APP_COLORS.remotedesk}">
       <div class="logo" style="background:${APP_COLORS.remotedesk}">${ICONS.remotedesk}</div>
-      <div><h2>RemoteDesk</h2><p>Fernwartung – schalte dich (nur mit Zustimmung) auf den Bildschirm des Anrufers. Alles rein fiktiv.</p></div></div>
+      <div><h2>RemoteDesk</h2><p>Fernwartung – verbinde dich mit dem Code des Anrufers. Alles rein fiktiv.</p></div></div>
       <div id="rd-body"></div></div>`);
     return el;
   },
@@ -773,19 +780,38 @@ APPS.remotedesk = {
     const body = $('#rd-body', w.body);
     const c = G.call && G.call.status === 'active' ? G.call : null;
     const connected = c && c.remoteConnected;
-    const key = !c ? 'none' : connected ? 'desk' + (c.fakePC?.open || '') : canReveal(c) ? 'ready' : 'needtrust' + Math.round(c.trust);
+    const key = !c ? 'none' : connected ? 'desk' + (c.fakePC?.open || '') : canReveal(c) ? 'code' : 'needtrust' + Math.round(c.trust);
     if (body.dataset.key === key) return;
     body.dataset.key = key;
     body.innerHTML = '';
     if (!c) { body.append(h('<div class="note muted">Kein Anruf aktiv. RemoteDesk funktioniert nur während eines Gesprächs.</div>')); return; }
     if (!connected && !canReveal(c)) {
-      body.append(h(`<div class="note muted">${esc(c.p.name)} lässt dich noch nicht auf den Bildschirm – zu wenig Vertrauen (${Math.round(c.trust)}%). Bau im Telefon erst Vertrauen auf.</div>`));
+      body.append(h(`<div class="note muted">${esc(c.p.name)} liest dir den Verbindungscode noch nicht vor – zu wenig Vertrauen (${Math.round(c.trust)}%). Bau im Telefon erst Vertrauen auf.</div>`));
       return;
     }
     if (!connected) {
-      const box = h(`<div><div class="note">${esc(c.p.name)} vertraut dir genug. „Darf ich mich kurz auf Ihren Bildschirm schalten, um das zu reparieren?"</div><button class="big-btn" id="rd-connect">🔌 Verbinden</button></div>`);
+      // Der Anrufer liest den Code einmal im Chat vor (das Einzige, was er dafür tun muss).
+      if (!c.remoteCodeSaid) {
+        c.remoteCodeSaid = true;
+        const code = remoteCode(c);
+        addMsg(c, 'caller', S.lang === 'de'
+          ? `Ach, da ist so ein blaues Fenster aufgegangen… da steht eine Nummer: ${code}.`
+          : `Oh, a little blue window popped up… there's a number: ${code}.`);
+      }
+      const box = h(`<div><div class="note">Gib den Verbindungscode ein, den ${esc(c.p.name.split(' ')[0])} dir am Telefon vorgelesen hat.</div>
+        <div class="rd-hackrow"><input class="f" id="rd-code" placeholder="### ### ###" autocomplete="off" /><button class="big-btn" id="rd-connect" style="margin:0">🔌 Verbinden</button></div>
+        <div class="note err" id="rd-codeerr" hidden></div></div>`);
       body.append(box);
-      $('#rd-connect', box).onclick = () => { makeFakePC(c); c.remoteConnected = true; sfx.pickup(); this.refresh(); };
+      const tryConnect = () => {
+        if (onlyDigits($('#rd-code', box).value) === onlyDigits(remoteCode(c))) {
+          makeFakePC(c); c.remoteConnected = true; sfx.pickup(); this.refresh();
+        } else {
+          const e = $('#rd-codeerr', box); e.hidden = false; e.textContent = 'Falscher Code. Frag den Anrufer nochmal nach der Nummer im blauen Fenster.';
+          $('#rd-code', box).classList.add('shake'); setTimeout(() => $('#rd-code', box).classList.remove('shake'), 400);
+        }
+      };
+      $('#rd-connect', box).onclick = tryConnect;
+      $('#rd-code', box).addEventListener('keydown', (ev) => ev.key === 'Enter' && tryConnect());
       return;
     }
     const pc = makeFakePC(c);
@@ -805,22 +831,8 @@ APPS.remotedesk = {
     const box = $('#rd-open', w.body); if (!box) return;
     const pc = c.fakePC, bio = pc.bio;
     box.innerHTML = '';
-    if (id === 'gift') {
-      // Kein Code auf dem PC – muss am Telefon erfragt werden.
-      if (c.revealed) {
-        const panel = h(`<div class="rd-panel"><h3>🎁 Gutscheinkarte</h3><p>Du hast den Code am Telefon schon bekommen:</p>
-          <pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
-          <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins Gift Card Vault einfügen</button></div></div>`);
-        $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
-        $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
-        box.append(panel);
-      } else {
-        box.append(h(`<div class="rd-panel"><h3>🎁 Gutscheinkarte.txt</h3>
-          <pre>Hab die Karte im Laden gekauft, sie liegt hier auf dem Tisch.\nDen Code hab ich NICHT abgetippt.</pre>
-          <p class="muted">Der Code steht nicht im Computer – den musst du dir am Telefon vorlesen lassen (genug Vertrauen aufbauen und danach fragen).</p></div>`));
-      }
-    } else if (id === 'banking') {
-      this.renderBanking(c);
+    if (id === 'vault') {
+      this.renderHack(c);
     } else if (id === 'privat') {
       box.append(h(`<div class="rd-panel"><h3>📂 Privat</h3><pre>${esc(
         `${bio.kinRel}: ${bio.kinName}, ${bio.kinAge} Jahre\nGeburtstag: ${bio.bday}\nKatze: ${bio.pet}\nHobby: ${bio.hobby}\nLieblingsessen: ${bio.food}`
@@ -832,22 +844,26 @@ APPS.remotedesk = {
     }
     box.scrollIntoView?.({ block: 'nearest' });
   },
-  renderBanking(c) {
+  // PIN-Rätsel für Gutschein-Tresor / Online-Banking – komplett vom Spieler zu lösen.
+  renderHack(c) {
     const box = $('#rd-open', WM.wins.remotedesk.body);
     const pc = c.fakePC, hk = pc.hack;
+    const gift = c.p.pay === 'giftcard';
+    const title = gift ? '🎁 Gutschein-Tresor' : '🏦 Online-Banking';
+    const target = gift ? 'Gift Card Vault' : 'Card Terminal';
     box.innerHTML = '';
     if (hk.cracked) {
-      const panel = h(`<div class="rd-panel"><h3>🏦 Online-Banking – entsperrt ✅</h3>
+      const panel = h(`<div class="rd-panel"><h3>${title} – entsperrt ✅</h3>
         <pre class="rd-code">${esc(secretText(c, S.lang))}</pre>
-        <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins Card Terminal einfügen</button></div></div>`);
+        <div class="card-actions"><button class="copy">📋 Kopieren</button><button class="fill">➜ Ins ${target} einfügen</button></div></div>`);
       c.revealed = true;
       $('.copy', panel).onclick = async (e) => { try { await navigator.clipboard.writeText(secretText(c, S.lang)); e.target.textContent = '✓ Kopiert'; } catch { e.target.textContent = 'fehlgeschlagen'; } setTimeout(() => (e.target.textContent = '📋 Kopieren'), 2000); };
       $('.fill', panel).onclick = () => fillForm(c.p.pay, c.secret);
       box.append(panel);
       return;
     }
-    const panel = h(`<div class="rd-panel"><h3>🏦 Online-Banking – gesperrt 🔒</h3>
-      <p>Gesichert mit einer 4-stelligen PIN. Knack sie: tippe 4 Ziffern und „Testen". 🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle.</p>
+    const panel = h(`<div class="rd-panel"><h3>${title} – gesperrt 🔒</h3>
+      <p>Mit einer 4-stelligen PIN geschützt. Knack sie selbst: 4 Ziffern eintippen und „Testen".<br>🟢 = richtige Ziffer an richtiger Stelle · 🟡 = richtige Ziffer, falsche Stelle · ⚪ = falsch.</p>
       <div class="rd-hackrow"><input class="f rd-pin" id="rd-pin" inputmode="numeric" maxlength="4" placeholder="PIN" /><button class="btn primary" id="rd-try">Testen</button></div>
       <div id="rd-guesses" class="rd-guesses"></div></div>`);
     box.append(panel);
@@ -863,7 +879,8 @@ APPS.remotedesk = {
       const fb = pinFeedback(v, pc.pin);
       hk.guesses.push({ guess: v, black: fb.black, white: fb.white });
       input.value = '';
-      if (fb.black === 4) { hk.cracked = true; sfx.cash(); this.renderBanking(c); return; }
+      if (fb.black === 4) { hk.cracked = true; sfx.cash(); this.renderHack(c); return; }
+      sfx.blip();
       drawGuesses();
       input.focus();
     };

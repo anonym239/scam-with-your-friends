@@ -85,12 +85,12 @@ statt über die oft unzuverlässige Zahl des Modells. So spielen auch kleine Mod
 ### 📡 RemoteDesk – Fernwartung (fiktives Minispiel)
 
 Echte Support-Betrüger schalten sich per Fernwartung auf den Bildschirm – das greift das Spiel als Satire auf.
-In der **RemoteDesk**-App schaltest du dich **nur mit Zustimmung des (erfundenen) Anrufers** auf seinen
-**komplett zufällig erzeugten NPC-Desktop**. Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.**
+In der **RemoteDesk**-App schaltest du dich auf den **komplett zufällig erzeugten NPC-Desktop** des Anrufers.
+Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.**
 
-- **Gutschein-Code:** liegt **nicht** auf dem PC. Den musst du dir weiter am Telefon geben lassen – also Vertrauen aufbauen und danach fragen.
-- **Online-Banking** (bei Kreditkarten-Anrufern): mit einer 4-stelligen PIN gesichert. Die knackst du im **Hack-Minispiel** (Mastermind: 🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle). Danach kannst du die Kartendaten ins Card Terminal übernehmen.
-- **Ordner „Privat":** offen, mit harmlosen erfundenen Alltags-Infos (z. B. „Enkel: Timmy, 27 Jahre", Katzenname, Hobby). Die kannst du am Telefon nutzen, um Vertrauen aufzubauen.
+1. **Verbinden nur mit Code:** Ab genug Vertrauen liest dir der Anrufer im Chat einen **Verbindungscode** vor (wie eine Fernwartungs-ID). Den tippst du in RemoteDesk ein – ohne richtigen Code geht nichts.
+2. **Tresor knacken (Hack-Minispiel):** Gutschein-Tresor bzw. Online-Banking auf dem Desktop sind mit einer 4-stelligen PIN gesichert. Die knackst du **selbst** im Rätsel-Minispiel (🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle, ⚪ = falsch). Der Anrufer muss dafür nichts mehr tun oder sagen. Nach dem Knacken übernimmst du Code bzw. Kartendaten mit einem Klick ins Formular.
+3. **Ordner „Privat":** offen, mit harmlosen erfundenen Alltags-Infos (z. B. „Enkel: Timmy, 27 Jahre", Katzenname, Hobby). Nützlich, um am Telefon Vertrauen aufzubauen.
 
 Kotlana OS ist Satire über Betrugsmaschen, kein Werkzeug, um echte Menschen auszuspähen.
 
