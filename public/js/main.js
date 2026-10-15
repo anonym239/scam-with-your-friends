@@ -5,6 +5,7 @@ import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, 
 import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor, canReveal } from './ai.js';
 import { startRecognition, MIC_LANGS } from './speech.js';
+import { checkUpdate } from './update.js';
 
 // ---------------------------------------------------------------- Helpers
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -184,6 +185,15 @@ function toast(text, icon = 'banditcam', ms = 5000) {
   $('.t-x', el).onclick = () => el.remove();
   $('#toasts').append(el);
   setTimeout(() => el.remove(), ms);
+}
+
+// Hinweis-Toast mit Link, wenn eine neue Version verfügbar ist
+function updateToast(u) {
+  const el = h(`<div class="toast"><span class="t-ic" style="display:grid;place-items:center;width:44px;height:44px;border-radius:4px;background:#2a8ee4;font-size:24px">⬆️</span>
+    <span>Neue Version <b>${esc(u.tag)}</b> verfügbar. <a href="${esc(u.url)}" target="_blank" rel="noopener" style="color:#7cc4ff">Herunterladen</a></span>
+    <button class="t-x">&#10005;</button></div>`);
+  $('.t-x', el).onclick = () => { try { store.set('updSeen', u.tag); } catch {} el.remove(); };
+  $('#toasts').append(el);
 }
 
 function updateStats() {
@@ -1220,6 +1230,13 @@ function boot() {
       WM.open('phone');
       toast('Willkommen bei Kotlana OS! Die Anrufer spielt dein Ollama-Modell.', 'settings', 6000);
       if (readyToPlay()) scheduleNextCall(3000);
+      // Remote-Update-Prüfung (still, ohne zu nerven)
+      setTimeout(async () => {
+        try {
+          const u = await checkUpdate();
+          if (u && store.get('updSeen', '') !== u.tag) updateToast(u);
+        } catch {}
+      }, 4000);
     }, 1800);
   };
   $('#power-btn').onclick = powerOn;

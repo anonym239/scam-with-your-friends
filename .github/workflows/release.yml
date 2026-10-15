@@ -22,6 +22,10 @@ jobs:
 
       - run: npm ci
 
+      - name: Versionsinfo einbacken
+        shell: bash
+        run: echo "{\"commit\":\"${{ github.sha }}\",\"built\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > public/version.json
+
       - name: KotlanaOS.exe bauen
         run: npm run build:exe
 

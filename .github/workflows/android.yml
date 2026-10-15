@@ -29,6 +29,8 @@ jobs:
           cp -r public/. android/app/src/main/assets/web/
           # leere Platzhalterdatei entfernen, falls vorhanden
           rm -f android/app/src/main/assets/web/.gitkeep
+          # Versionsinfo einbacken (fuer die Update-Pruefung)
+          echo "{\"commit\":\"${{ github.sha }}\",\"built\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > android/app/src/main/assets/web/version.json
 
       - uses: gradle/actions/setup-gradle@v4
         with:
