@@ -178,10 +178,10 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 .rd-panel pre { background: #f3f4f6; padding: 10px 12px; border-radius: 4px; white-space: pre-wrap; margin: 0; font-size: 14px; }
 .rd-code { font-size: 20px !important; font-weight: 800; letter-spacing: 1px; color: #0f5132; }
 .rd-hackrow { display: flex; gap: 8px; margin: 10px 0; }
-.rd-pin { width: 120px; letter-spacing: 8px; text-align: center; font-size: 22px !important; font-weight: 800; }
-.rd-guesses { display: flex; flex-direction: column; gap: 4px; }
-.rd-guess { font-family: ui-monospace, monospace; font-size: 18px; letter-spacing: 3px; }
-.rd-pegs { letter-spacing: 1px; }
+.rd-bar { position: relative; height: 26px; background: #e5e7eb; border-radius: 13px; overflow: hidden; margin: 10px 0; }
+.rd-bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, #22a447, #4ade80); transition: width .2s; }
+.rd-bar-pct { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 14px; color: #111; }
+.rd-matrix { background: #0b1020; color: #4ade80; font-family: ui-monospace, monospace; letter-spacing: 2px; padding: 8px 10px; border-radius: 4px; margin: 0 0 4px; white-space: pre; overflow: hidden; }
 
 /* ---------- Taskbar ---------- */
 #taskbar { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: var(--bar); display: flex; align-items: stretch; color: #fff; z-index: 5000; }

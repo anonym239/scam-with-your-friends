@@ -89,7 +89,7 @@ In der **RemoteDesk**-App schaltest du dich auf den **komplett zufällig erzeugt
 Alles ist rein fiktiv: **kein echtes Gerät, kein Netzwerk, keine echten Daten.**
 
 1. **Verbinden nur mit Code:** Ab genug Vertrauen liest dir der Anrufer im Chat einen **Verbindungscode** vor (wie eine Fernwartungs-ID). Den tippst du in RemoteDesk ein – ohne richtigen Code geht nichts.
-2. **Tresor knacken (Hack-Minispiel):** Gutschein-Tresor bzw. Online-Banking auf dem Desktop sind mit einer 4-stelligen PIN gesichert. Die knackst du **selbst** im Rätsel-Minispiel (🟢 = richtige Ziffer an richtiger Stelle, 🟡 = richtige Ziffer, falsche Stelle, ⚪ = falsch). Der Anrufer muss dafür nichts mehr tun oder sagen. Nach dem Knacken übernimmst du Code bzw. Kartendaten mit einem Klick ins Formular.
+2. **Tresor knacken (einfaches Hack-Minispiel, ohne Zahlen):** Gutschein-Tresor bzw. Online-Banking auf dem Desktop sind gesperrt. Du umgehst die „Firewall", indem du immer wieder auf **Knacken** klickst, bis der Balken voll ist – ganz ohne PIN oder Zahlen. Der Anrufer muss dafür nichts mehr tun oder sagen. Nach dem Knacken übernimmst du Code bzw. Kartendaten mit einem Klick ins Formular.
 3. **Ordner „Privat":** offen, mit harmlosen erfundenen Alltags-Infos (z. B. „Enkel: Timmy, 27 Jahre", Katzenname, Hobby). Nützlich, um am Telefon Vertrauen aufzubauen.
 
 Kotlana OS ist Satire über Betrugsmaschen, kein Werkzeug, um echte Menschen auszuspähen.

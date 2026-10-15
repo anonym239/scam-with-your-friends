@@ -756,15 +756,8 @@ function remoteCode(c) {
   return c.remoteCode;
 }
 
-// PIN-Rätsel-Feedback: wie viele Ziffern richtig an richtiger / an falscher Stelle
-function pinFeedback(guess, pin) {
-  let black = 0;
-  const g = guess.split(''), p = pin.split('');
-  for (let i = 0; i < 4; i++) if (g[i] === p[i]) { black++; g[i] = p[i] = null; }
-  let white = 0;
-  for (let i = 0; i < 4; i++) if (g[i] != null) { const j = p.indexOf(g[i]); if (j >= 0) { white++; p[j] = null; } }
-  return { black, white };
-}
+const GLITCH = '▓▒░#@%&$*<>/\\|=+ABCDEF0123456789';
+const randGlitch = (n) => Array.from({ length: n }, () => GLITCH[Math.floor(Math.random() * GLITCH.length)]).join('');
 
 APPS.remotedesk = {
   title: 'RemoteDesk', label: 'RemoteDesk', w: 780, h: 600,
@@ -844,10 +837,11 @@ APPS.remotedesk = {
     }
     box.scrollIntoView?.({ block: 'nearest' });
   },
-  // PIN-Rätsel für Gutschein-Tresor / Online-Banking – komplett vom Spieler zu lösen.
+  // Einfaches Hack-Minispiel (ohne Zahlen): „Firewall umgehen" – auf Knacken klicken,
+  // bis der Balken voll ist. Komplett vom Spieler zu lösen, der Anrufer muss nichts tun.
   renderHack(c) {
     const box = $('#rd-open', WM.wins.remotedesk.body);
-    const pc = c.fakePC, hk = pc.hack;
+    const hk = c.fakePC.hack;
     const gift = c.p.pay === 'giftcard';
     const title = gift ? '🎁 Gutschein-Tresor' : '🏦 Online-Banking';
     const target = gift ? 'Gift Card Vault' : 'Card Terminal';
@@ -863,30 +857,22 @@ APPS.remotedesk = {
       return;
     }
     const panel = h(`<div class="rd-panel"><h3>${title} – gesperrt 🔒</h3>
-      <p>Mit einer 4-stelligen PIN geschützt. Knack sie selbst: 4 Ziffern eintippen und „Testen".<br>🟢 = richtige Ziffer an richtiger Stelle · 🟡 = richtige Ziffer, falsche Stelle · ⚪ = falsch.</p>
-      <div class="rd-hackrow"><input class="f rd-pin" id="rd-pin" inputmode="numeric" maxlength="4" placeholder="PIN" /><button class="btn primary" id="rd-try">Testen</button></div>
-      <div id="rd-guesses" class="rd-guesses"></div></div>`);
+      <p>Firewall umgehen: klick immer wieder auf <b>Knacken</b>, bis der Balken voll ist.</p>
+      <div class="rd-bar"><div class="rd-bar-fill" id="rd-fill"></div><span class="rd-bar-pct" id="rd-pct">0%</span></div>
+      <pre class="rd-matrix" id="rd-matrix"> </pre>
+      <button class="big-btn" id="rd-crack" style="margin-top:4px">🔓 Knacken</button></div>`);
     box.append(panel);
-    const guesses = $('#rd-guesses', panel);
-    const drawGuesses = () => {
-      guesses.innerHTML = hk.guesses.map((g) => `<div class="rd-guess"><b>${esc(g.guess)}</b> <span class="rd-pegs">${'🟢'.repeat(g.black)}${'🟡'.repeat(g.white)}${'⚪'.repeat(4 - g.black - g.white)}</span></div>`).join('');
+    let prog = hk.progress || 0;
+    const fill = $('#rd-fill', panel), pct = $('#rd-pct', panel), matrix = $('#rd-matrix', panel);
+    const draw = () => { fill.style.width = prog + '%'; pct.textContent = Math.round(prog) + '%'; matrix.textContent = prog >= 100 ? 'ZUGRIFF GEWÄHRT ✅' : randGlitch(34); };
+    draw();
+    $('#rd-crack', panel).onclick = () => {
+      prog = Math.min(100, prog + 16 + Math.random() * 10);
+      hk.progress = prog;
+      draw();
+      if (prog >= 100) { hk.cracked = true; sfx.cash(); setTimeout(() => this.renderHack(c), 350); }
+      else sfx.blip();
     };
-    drawGuesses();
-    const input = $('#rd-pin', panel);
-    const tryPin = () => {
-      const v = onlyDigits(input.value).slice(0, 4);
-      if (v.length !== 4) { input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); return; }
-      const fb = pinFeedback(v, pc.pin);
-      hk.guesses.push({ guess: v, black: fb.black, white: fb.white });
-      input.value = '';
-      if (fb.black === 4) { hk.cracked = true; sfx.cash(); this.renderHack(c); return; }
-      sfx.blip();
-      drawGuesses();
-      input.focus();
-    };
-    $('#rd-try', panel).onclick = tryPin;
-    input.addEventListener('keydown', (e) => e.key === 'Enter' && tryPin());
-    input.focus();
   },
   onOpen() { this.refresh(); },
 };
