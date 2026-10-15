@@ -1,0 +1,65 @@
+name: Build .exe & Release
+
+# Bei jedem Push wird KotlanaOS.exe gebaut und als neues GitHub-Release veröffentlicht.
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: KotlanaOS.exe bauen
+        run: npm run build:exe
+
+      - name: Kurztest der .exe
+        shell: bash
+        run: |
+          KOTLANA_NO_BROWSER=1 PORT=3123 ./dist/KotlanaOS.exe &
+          sleep 5
+          curl -sf http://localhost:3123/ | grep -q "Kotlana OS"
+          curl -sf -o /dev/null http://localhost:3123/js/main.js
+          taskkill //F //IM KotlanaOS.exe || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KotlanaOS-windows
+          path: dist/KotlanaOS.exe
+
+      - name: GitHub-Release erstellen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          TAG="v${BASE}.${{ github.run_number }}"
+          cat > notes.md <<NOTES
+          ## Kotlana OS ${TAG}
+
+          **Starten:** \`KotlanaOS.exe\` herunterladen und doppelklicken. Der Browser öffnet sich automatisch mit dem Spiel.
+          Das schwarze Fenster offen lassen, solange du spielst (schließen = Spiel beenden).
+
+          - Für KI-Anrufer/KI-Spieler: [Ollama](https://ollama.com) starten und ein Modell laden, z. B. \`ollama pull llama3.2\`
+          - Ohne Ollama: in der Demo-App auf „Demo starten“ klicken
+          - Windows SmartScreen warnt evtl., weil die Datei nicht signiert ist → „Weitere Informationen“ → „Trotzdem ausführen“
+
+          Commit: ${{ github.sha }} (Branch \`${{ github.ref_name }}\`)
+          NOTES
+          gh release create "$TAG" dist/KotlanaOS.exe \
+            --target "${{ github.sha }}" \
+            --title "Kotlana OS ${TAG}" \
+            --notes-file notes.md \
+            --latest

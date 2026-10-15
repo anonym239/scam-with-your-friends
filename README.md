@@ -8,7 +8,16 @@ zweites Modell den Agenten, also das ganze Spiel selbst.
 
 ![Demo](public/assets/demo/demo-5.webp)
 
-## Starten
+## Download (Windows, ein Klick)
+
+👉 **[Neueste KotlanaOS.exe herunterladen](../../releases/latest)**. Doppelklick genügt, der Browser öffnet sich mit dem Spiel.
+Das Konsolenfenster offen lassen, solange du spielst. Bei jedem Push baut GitHub Actions automatisch eine neue `.exe`
+und veröffentlicht sie als Release. Windows SmartScreen kann warnen, weil die Datei nicht signiert ist.
+Klicke dann auf „Weitere Informationen“ und „Trotzdem ausführen“.
+
+Selbst bauen: `npm ci && npm run build:exe` (unter Linux/macOS: `npm run build:exe -- --win`), die Datei liegt dann in `dist/`.
+
+## Starten aus dem Quellcode
 
 ```bash
 # 1. Ollama starten und ein Modell laden (z. B.)
