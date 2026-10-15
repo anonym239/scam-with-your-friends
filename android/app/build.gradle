@@ -1,0 +1,30 @@
+apply plugin: 'com.android.application'
+
+android {
+  namespace 'com.anonym239.kotlanaos'
+  compileSdk 34
+
+  defaultConfig {
+    applicationId 'com.anonym239.kotlanaos'
+    minSdk 26
+    targetSdk 34
+    versionCode 1
+    versionName '1.0'
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  // Winziger HTTP-Server in der App: liefert das Spiel aus und leitet /ollama an die Ollama-App weiter
+  implementation 'org.nanohttpd:nanohttpd:2.3.1'
+}

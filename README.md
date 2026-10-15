@@ -21,6 +21,33 @@ Windows SmartScreen kann warnen, weil die Dateien nicht signiert sind. Klicke da
 Bei jedem Push baut GitHub Actions beide Dateien, testet das Setup mit einer stillen Installation und veröffentlicht ein neues Release.
 Selbst bauen: `npm ci && npm run build:exe` und danach `iscc build\installer.iss` ([Inno Setup 6](https://jrsoftware.org/isinfo.php)).
 
+## 📱 Auf dem Handy (Android) – alles lokal
+
+Du brauchst **kein eigenes Gerät als Server**: Ollama läuft als App auf dem Handy, und die `KotlanaOS.apk` bringt das
+Spiel mit. Beide reden nur über `127.0.0.1` miteinander – nichts geht ins Internet.
+
+**So geht's:**
+
+1. **Ollama-App** auf dem Handy öffnen und laufen lassen. Lade dort ein **kleines** Modell herunter (Handys haben wenig
+   RAM): z. B. `llama3.2:3b`, `qwen2.5:3b` oder `gemma3:1b`. Je kleiner, desto flüssiger.
+   Die App muss ihren Server auf dem Standard-Port **11434** bereitstellen (Standard bei Ollama).
+2. **`KotlanaOS.apk` herunterladen** → [neuestes Release](../../releases/latest) → `KotlanaOS.apk`.
+3. APK **installieren**: antippen, und wenn Android fragt, „Installieren aus unbekannten Quellen" für den Browser/die
+   Dateien-App **erlauben**. (Die APK ist mit einem Debug-Schlüssel signiert, nicht aus dem Play Store – deshalb die Frage.)
+4. **Kotlana OS öffnen.** Die App startet einen winzigen Server in sich selbst, zeigt das Spiel an und leitet alle
+   KI-Anfragen an deine Ollama-App weiter. In den Einstellungen das Modell wählen, das du in Ollama geladen hast – fertig.
+
+**Gut zu wissen auf dem Handy:**
+- Lass die **Ollama-App im Hintergrund laufen**, während du spielst. Ist sie zu, steht im Spiel „Ollama nicht erreichbar".
+- **Spracheingabe (Mikrofon) und Sprachausgabe funktionieren im Android-WebView meist nicht** – tippen klappt immer.
+- Sehr kleine Modelle (1–3B) sind am schnellsten; stell die **Schwierigkeit auf „Leicht"**, dann reichen auch kleine Modelle gut.
+
+**Wie die APK gebaut wird:** Das Android-Projekt liegt unter `android/` (eine WebView-App + eingebauter Mini-Server mit
+Ollama-Proxy, genau wie `server.js` auf dem PC). GitHub Actions (`.github/workflows/android.yml`) baut bei jedem Push die
+`KotlanaOS.apk` und hängt sie ans Release. Selbst bauen (mit Android SDK): `public/` nach
+`android/app/src/main/assets/web/` kopieren, dann im Ordner `android/` `gradle assembleDebug` ausführen – die APK liegt
+danach unter `android/app/build/outputs/apk/debug/`.
+
 ## Starten aus dem Quellcode
 
 ```bash

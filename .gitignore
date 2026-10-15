@@ -1,3 +1,11 @@
 node_modules/
 dist/
 .DS_Store
+
+# Android-Build
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/web/*
+!android/app/src/main/assets/web/.gitkeep
