@@ -34,23 +34,57 @@ jobs:
           curl -sf -o /dev/null http://localhost:3123/js/main.js
           taskkill //F //IM KotlanaOS.exe || true
 
+      - name: Version bestimmen
+        id: ver
+        shell: bash
+        run: |
+          BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          echo "version=${BASE}.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup bauen (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" build\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Setup testen (stille Installation + Start + Deinstallation)
+        shell: pwsh
+        run: |
+          Start-Process dist\KotlanaOS-Setup.exe -ArgumentList '/VERYSILENT','/CURRENTUSER','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $exe = "$env:LOCALAPPDATA\Programs\Kotlana OS\KotlanaOS.exe"
+          if (-not (Test-Path $exe)) { throw "KotlanaOS.exe wurde nicht installiert" }
+          $env:KOTLANA_NO_BROWSER = '1'; $env:PORT = '3124'
+          $p = Start-Process $exe -PassThru
+          Start-Sleep 5
+          $html = (Invoke-WebRequest http://localhost:3124/ -UseBasicParsing).Content
+          if ($html -notmatch 'Kotlana OS') { throw 'Installierte .exe liefert das Spiel nicht aus' }
+          Stop-Process $p -Force
+          Start-Process "$env:LOCALAPPDATA\Programs\Kotlana OS\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES' -Wait
+          Write-Host 'Setup-Test ok'
+
       - uses: actions/upload-artifact@v4
         with:
           name: KotlanaOS-windows
-          path: dist/KotlanaOS.exe
+          path: |
+            dist/KotlanaOS-Setup.exe
+            dist/KotlanaOS.exe
 
       - name: GitHub-Release erstellen
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BASE=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
-          TAG="v${BASE}.${{ github.run_number }}"
+          TAG="v${{ steps.ver.outputs.version }}"
           cat > notes.md <<NOTES
           ## Kotlana OS ${TAG}
 
-          **Starten:** \`KotlanaOS.exe\` herunterladen und doppelklicken. Der Browser öffnet sich automatisch mit dem Spiel.
-          Das schwarze Fenster offen lassen, solange du spielst (schließen = Spiel beenden).
+          ### Download
+          - **\`KotlanaOS-Setup.exe\`** (empfohlen): installiert Kotlana OS mit Startmenü- und Desktop-Verknüpfung und Deinstallation. Keine Administratorrechte nötig.
+          - \`KotlanaOS.exe\`: portable Version, einfach doppelklicken.
+
+          Nach dem Start öffnet sich der Browser mit dem Spiel. Das schwarze Fenster offen lassen, solange du spielst (schließen = Spiel beenden).
 
           - Für KI-Anrufer/KI-Spieler: [Ollama](https://ollama.com) starten und ein Modell laden, z. B. \`ollama pull llama3.2\`
           - Ohne Ollama: in der Demo-App auf „Demo starten“ klicken
@@ -58,7 +92,7 @@ jobs:
 
           Commit: ${{ github.sha }} (Branch \`${{ github.ref_name }}\`)
           NOTES
-          gh release create "$TAG" dist/KotlanaOS.exe \
+          gh release create "$TAG" dist/KotlanaOS-Setup.exe dist/KotlanaOS.exe \
             --target "${{ github.sha }}" \
             --title "Kotlana OS ${TAG}" \
             --notes-file notes.md \

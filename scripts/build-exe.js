@@ -59,6 +59,22 @@ function download(url, dest) {
   fs.chmodSync(out, 0o755);
   if (process.platform === 'darwin') execFileSync('codesign', ['--remove-signature', out]);
 
+  // Icon und Dateiinfos setzen (geht nur unter Windows; muss vor dem Einspritzen passieren)
+  if (forWin && process.platform === 'win32') {
+    const rcedit = require('rcedit');
+    const version = require(path.join(ROOT, 'package.json')).version;
+    await rcedit(out, {
+      icon: path.join(ROOT, 'build', 'icon.ico'),
+      'file-version': version,
+      'product-version': version,
+      'version-string': {
+        ProductName: 'Kotlana OS', FileDescription: 'Kotlana OS – Scam With Your Friends × Ollama',
+        CompanyName: 'anonym239', OriginalFilename: 'KotlanaOS.exe', InternalName: 'KotlanaOS', LegalCopyright: 'MIT',
+      },
+    });
+    console.log('• Icon und Versionsinfo gesetzt');
+  }
+
   // 4. Blob einspritzen
   const { inject } = require('postject');
   await inject(out, 'NODE_SEA_BLOB', fs.readFileSync(cfg.output), {

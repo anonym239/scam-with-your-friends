@@ -8,14 +8,19 @@ zweites Modell den Agenten, also das ganze Spiel selbst.
 
 ![Demo](public/assets/demo/demo-5.webp)
 
-## Download (Windows, ein Klick)
+## Download (Windows)
 
-👉 **[Neueste KotlanaOS.exe herunterladen](../../releases/latest)**. Doppelklick genügt, der Browser öffnet sich mit dem Spiel.
-Das Konsolenfenster offen lassen, solange du spielst. Bei jedem Push baut GitHub Actions automatisch eine neue `.exe`
-und veröffentlicht sie als Release. Windows SmartScreen kann warnen, weil die Datei nicht signiert ist.
-Klicke dann auf „Weitere Informationen“ und „Trotzdem ausführen“.
+👉 **[Neueste Version herunterladen](../../releases/latest)**
 
-Selbst bauen: `npm ci && npm run build:exe` (unter Linux/macOS: `npm run build:exe -- --win`), die Datei liegt dann in `dist/`.
+- **`KotlanaOS-Setup.exe` (empfohlen):** ein richtiges Setup mit Startmenü- und Desktop-Verknüpfung, Deinstallation über „Apps & Features“ und Update-Installation über die alte Version. Es braucht keine Administratorrechte. Am Ende kannst du das Spiel direkt starten, und falls Ollama fehlt, bietet das Setup den Download an.
+- **`KotlanaOS.exe`:** die portable Version. Doppelklick genügt, nichts wird installiert.
+
+Nach dem Start öffnet sich der Browser mit dem Spiel. Das Konsolenfenster offen lassen, solange du spielst.
+Startest du das Spiel ein zweites Mal, öffnet sich nur der Browser erneut. Deine Spielstände und Einstellungen bleiben erhalten.
+Windows SmartScreen kann warnen, weil die Dateien nicht signiert sind. Klicke dann auf „Weitere Informationen“ und „Trotzdem ausführen“.
+
+Bei jedem Push baut GitHub Actions beide Dateien, testet das Setup mit einer stillen Installation und veröffentlicht ein neues Release.
+Selbst bauen: `npm ci && npm run build:exe` und danach `iscc build\installer.iss` ([Inno Setup 6](https://jrsoftware.org/isinfo.php)).
 
 ## Starten aus dem Quellcode
 
@@ -57,6 +62,19 @@ Demo-App auf **„Demo starten“**.
 | **Demo** | Deine Screenshots als Slideshow, dazu die Knöpfe zum Start von Demo oder Ollama-Autoplay |
 
 Erreiche die **Quota**, bevor der Timer der **Performance Review** abläuft. Sonst wirst du gefeuert.
+
+### 🧠 So denkt die KI
+
+**Anrufer:** Jede Figur hat einen Hintergrund, Vorlieben, Abneigungen und eine begrenzte Geduld.
+Peggy liebt zum Beispiel ihren Kater Mr. Whiskers, und Gerhard hasst Kosenamen. Die Vertrauensänderung ist eine
+Mischung aus der Einschätzung des Modells und festen Spielregeln: Komplimente, Geduld und Lieblingsthemen geben Plus;
+Druck, Beleidigungen, Wiederholungen und eine zu frühe Frage nach dem Code geben Minus.
+Deshalb bleibt das Spiel auch mit kleinen Modellen fair. Den echten Code sieht das Modell erst, wenn das Vertrauen reicht.
+
+**KI-Spieler:** Er arbeitet in Phasen (Begrüßung → Vertrauen aufbauen → beruhigen → Überleitung → nach dem Code fragen → einlösen).
+Bei jedem Zug sieht er, wie seine letzten Sätze angekommen sind („+6, Lieblingsthema“ oder „−7, mag das nicht“), und passt sich an.
+Über mehrere Anrufe hinweg merkt er sich die besten und die schlechtesten Sätze. Dieses **KI-Gedächtnis** findest du in der Script-App.
+Wiederholt er sich, wird die Antwort neu erzeugt. Kaputte Antworten (kein JSON, leer, Zeitüberschreitung) fängt die Demo-Engine ab.
 
 ### 🤖 Ollama spielt Kotlana OS
 

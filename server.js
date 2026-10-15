@@ -7,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 
+process.title = 'Kotlana OS';
+
 // In der .exe sind alle Dateien aus public/ eingebettet (siehe scripts/build-exe.js).
 const EMBEDDED = globalThis.__KOTLANA_ASSETS__ || null;
 let IS_EXE = false;
@@ -91,13 +93,32 @@ function openBrowser(url) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/__kotlana') return res.end('kotlana-os');
   if (req.url.startsWith('/ollama/')) return proxyToOllama(req, res);
   serveStatic(req, res);
 });
 
-// Ist der Port belegt, nimm den nächsten freien.
+// Läuft Kotlana OS schon? Dann nur den Browser öffnen (gleiche Adresse = gleiche Spielstände).
+function isKotlana(port) {
+  return new Promise((resolve) => {
+    const r = http.get({ host: '127.0.0.1', port, path: '/__kotlana', timeout: 1500 }, (res) => {
+      let b = '';
+      res.on('data', (d) => (b += d));
+      res.on('end', () => resolve(b === 'kotlana-os'));
+    });
+    r.on('error', () => resolve(false));
+    r.on('timeout', () => { r.destroy(); resolve(false); });
+  });
+}
+
+// Ist der Port von etwas anderem belegt, nimm den nächsten freien.
 let tries = 0;
-server.on('error', (e) => {
+server.on('error', async (e) => {
+  if (e.code === 'EADDRINUSE' && (await isKotlana(PORT))) {
+    console.log(`\n  Kotlana OS läuft bereits – öffne http://localhost:${PORT}`);
+    openBrowser(`http://localhost:${PORT}`);
+    return setTimeout(() => process.exit(0), 1500);
+  }
   if (e.code === 'EADDRINUSE' && tries++ < 20) return server.listen(++PORT, HOST);
   console.error('Server-Fehler:', e.message);
   if (IS_EXE) setTimeout(() => process.exit(1), 10000);

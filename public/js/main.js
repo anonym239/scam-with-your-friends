@@ -1,10 +1,8 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
 import { listModels, version, chatJSON } from './ollama.js';
-import {
-  PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, findCode,
-  callerSystemPrompt, agentSystemPrompt, demoCaller, demoAgent,
-} from './callers.js';
+import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, findCode } from './callers.js';
+import { callerTurn, agentTurn as aiAgentTurn, lessons } from './ai.js';
 
 // ---------------------------------------------------------------- Helpers
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -61,8 +59,11 @@ const WM = {
   create(id) {
     const a = APPS[id];
     const vw = innerWidth, vh = innerHeight - 64;
-    const W = Math.min(a.w, vw - 20), H = Math.min(a.h, vh - 20);
-    const x = clamp(a.x ?? (vw - W) / 2, 0, vw - W), y = clamp(a.y ?? (vh - H) / 2, 0, vh - H);
+    // Fenster ohne feste Position leicht versetzt öffnen, damit sie sich nicht exakt verdecken
+    const n = Object.keys(this.wins).length;
+    const L = { ...a, x: a.x ?? (vw - a.w) / 2 + (n % 6) * 28 - 70, y: a.y ?? (vh - a.h) / 2 + (n % 6) * 24 - 60, ...layout(id) };
+    const W = Math.min(L.w, vw - 20), H = Math.min(L.h, vh - 20);
+    const x = clamp(L.x ?? (vw - W) / 2, 0, Math.max(0, vw - W)), y = clamp(L.y ?? (vh - H) / 2, 0, Math.max(0, vh - H));
     const el = h(`<div class="window" style="left:${x}px;top:${y}px;width:${W}px;height:${H}px">
       <div class="win-title"><span class="wi" style="background:${APP_COLORS[id]}">${ICONS[a.icon || id]}</span>
       <span class="wt">${esc(a.title)}</span>
@@ -96,6 +97,26 @@ const WM = {
   close(id) { const w = this.wins[id]; if (!w) return; APPS[id].onClose?.(); w.el.remove(); delete this.wins[id]; renderTaskbar(); },
   isOpen(id) { return !!this.wins[id]; },
 };
+
+// Startpositionen passend zur Bildschirmgröße: Telefon neben den Icons, Kamera und Kassen rechts daneben.
+function layout(id) {
+  const vw = innerWidth, vh = innerHeight - 64;
+  if (vw < 900) return {};
+  const left = $('#icons-left').getBoundingClientRect().right;
+  const r = $('#icons-right').getBoundingClientRect();
+  const rightEdge = (r.width ? r.left : vw) - 14;
+  const phoneW = 420, phoneX = clamp(left + 16, 0, vw - phoneW);
+  const side = phoneX + phoneW + 16, sideW = Math.min(760, rightEdge - side);
+  if (id === 'phone') return { x: phoneX, y: 10 };
+  if (sideW < 340) return {};
+  const camH = Math.round(sideW * 0.62);
+  if (id === 'camera') return { x: side, y: 20, w: sideW, h: camH };
+  if (id === 'giftcards' || id === 'creditcard') {
+    const h = id === 'giftcards' ? 400 : 480;
+    return { x: side, y: clamp(20 + camH - 60, 0, Math.max(0, vh - h)), w: sideW };
+  }
+  return {};
+}
 
 // ---------------------------------------------------------------- Desktop & taskbar
 const LEFT_ICONS = ['scamazon', 'giftcards', 'browser', 'banditcam', 'creditcard', 'camera', 'settings', 'demo'];
@@ -142,7 +163,9 @@ function renderTaskbar() {
 function refreshAgentChip() {
   const c = $('#tb-agent');
   c.classList.toggle('on', S.autoplay);
-  c.textContent = S.autoplay ? `🤖 KI spielt · ${S.agentModel === 'demo' ? 'Demo' : S.agentModel}` : '🧑 Du spielst';
+  const PH = { greet: 'Begrüßung', rapport: 'Vertrauen aufbauen', calm: 'beruhigen', bridge: 'Überleitung', ask: 'fragt nach Code', redeem: 'löst ein' };
+  const ph = S.autoplay && G.call?.status === 'active' && G.call.phase ? ` · ${PH[G.call.phase]}` : '';
+  c.textContent = S.autoplay ? `🤖 KI spielt · ${S.agentModel === 'demo' ? 'Demo' : S.agentModel}${ph}` : '🧑 Du spielst';
 }
 
 function toast(text, icon = 'banditcam', ms = 5000) {
@@ -214,10 +237,10 @@ function ringCall() {
   G.lastPersona = p.id;
   G.call = {
     p, trust: p.start + (G.upgrades.badge ? 10 : 0), secret: makeSecret(p), history: [], status: 'ringing',
-    mood: 'neutral', busy: false, claimed: false, revealed: false, started: new Date(),
+    mood: 'neutral', busy: false, claimed: false, revealed: false, started: new Date(), patience: p.patience,
   };
   G.nextCallAt = null;
-  if (!WM.isOpen('phone')) WM.open('phone');
+  WM.open('phone'); // holt das Telefon nach vorn, auch wenn es minimiert oder verdeckt ist
   renderPhone();
   startRing();
   if (S.autoplay) setTimeout(() => G.call?.status === 'ringing' && acceptCall(), 1800);
@@ -273,7 +296,7 @@ function addMsg(c, role, text) {
 async function sendAgent(text) {
   const c = G.call;
   text = String(text || '').trim();
-  if (!text || !c || c.status !== 'active' || c.busy) return;
+  if (!text || !c || c.status !== 'active' || c.busy) return false;
   c.lastAgentLine = text;
   addMsg(c, 'agent', text);
   showSubtitle(text);
@@ -286,42 +309,31 @@ async function sendAgent(text) {
 async function callerRespond(c) {
   const typing = appendChat(c, { role: 'caller', text: '…', typing: true });
   setTalking(true);
-  let r;
-  try {
-    if (S.callerModel === 'demo') { await sleep(700 + Math.random() * 800); r = demoCaller(c, c.lastAgentLine, S.lang); }
-    else {
-      const messages = [
-        { role: 'system', content: callerSystemPrompt(c, S.lang) },
-        ...c.history.filter((m) => m.role !== 'sys').map((m) => ({ role: m.role === 'caller' ? 'assistant' : 'user', content: m.text })),
-      ];
-      r = await chatJSON(S.base, S.callerModel, messages, { temperature: Number(S.temperature) });
-    }
-  } catch (e) {
-    addMsg(c, 'sys', `Ollama-Fehler (${e.message}) – Demo-Engine springt ein.`);
-    r = demoCaller(c, c.lastAgentLine, S.lang);
-  }
+  const r = await callerTurn(c, S);
   typing?.remove();
   setTalking(false);
+  if (r.error) addMsg(c, 'sys', `Ollama-Fehler (${r.error}) – Demo-Engine springt ein.`);
   if (G.call !== c || c.status !== 'active') return;
 
-  // Vertrauen anwenden
-  let d = Math.round(Number(r.trust_change) || 0);
-  d = clamp(d, -15, 12);
-  if (d > 0) {
-    d = d * c.p.gain * (G.upgrades.charm ? 1.25 : 1) + (G.upgrades.headset ? 2 : 0);
-    d = Math.round(d);
-  }
+  // Upgrades verstärken positive Reaktionen
+  let d = r.delta;
+  if (d > 0) d = Math.round(d * c.p.gain * (G.upgrades.charm ? 1.25 : 1) + (G.upgrades.headset ? 2 : 0));
   const before = c.trust;
   c.trust = clamp(c.trust + d, 0, 100);
-  c.mood = ['happy', 'neutral', 'suspicious', 'angry'].includes(r.mood) ? r.mood : c.mood;
+  c.mood = r.mood;
+  c.lastDelta = d;
+  c.patience -= d < 0 ? 2 : 1;
+
+  // Rückmeldung am Agenten-Satz speichern (für die KI und das Lern-Gedächtnis)
+  const lastAgent = [...c.history].reverse().find((m) => m.role === 'agent');
+  if (lastAgent) { lastAgent.delta = d; lastAgent.why = r.why; lessons.record(lastAgent.text, d, r.why, c.p.id); }
 
   // Spielregel: Code nur bei genug Vertrauen – und dann exakt.
-  let reply = String(r.reply || r.say || '...').trim();
+  let reply = r.reply;
   const allowed = before >= c.p.threshold || c.trust >= c.p.threshold;
-  if (r.reveal_code && allowed) {
-    const s = secretText(c, S.lang);
+  if (r.reveal && allowed) {
     const need = c.p.pay === 'giftcard' ? [onlyDigits(c.secret.code)] : [onlyDigits(c.secret.number), c.secret.cvv];
-    if (!need.every((n) => onlyDigits(reply).includes(n))) reply = reply.replace(/\d[\d\s\-/]{3,}\d/g, '').trim() + ' ' + s;
+    if (!need.every((n) => onlyDigits(reply).includes(n))) reply = reply.replace(/\d[\d\s\-/]{3,}\d/g, '').trim() + ' ' + secretText(c, S.lang);
     c.revealed = true;
   } else if (onlyDigits(reply).includes(onlyDigits(c.p.pay === 'giftcard' ? c.secret.code : c.secret.number))) {
     c.revealed = true;
@@ -332,12 +344,12 @@ async function callerRespond(c) {
   renderPhone();
   c.busy = false;
   await speak(reply, 'caller');
+  if (G.call !== c || c.status !== 'active') return;
 
-  const turns = c.history.filter((m) => m.role === 'agent').length;
-  if (r.hang_up || c.trust <= 0) return endCall(`${c.p.name} ${S.lang === 'de' ? 'hat aufgelegt.' : 'hung up.'}`);
-  if (turns >= 18) {
-    addMsg(c, 'caller', S.lang === 'de' ? 'Ich muss jetzt los, tschüss!' : 'I have to go now, bye!');
-    return endCall(S.lang === 'de' ? 'Anrufer hat aufgelegt (zu lang).' : 'Caller hung up (too long).');
+  if (r.hangUp || c.trust <= 0) return endCall(`${c.p.name} ${S.lang === 'de' ? 'hat aufgelegt.' : 'hung up.'}`);
+  if (c.patience <= 0 && !c.revealed) {
+    addMsg(c, 'caller', S.lang === 'de' ? 'Wissen Sie was, ich muss jetzt los. Tschüss!' : 'You know what, I have to go now. Bye!');
+    return endCall(S.lang === 'de' ? 'Anrufer hat die Geduld verloren.' : 'Caller ran out of patience.');
   }
   renderPhone();
   scheduleAgent();
@@ -363,18 +375,13 @@ async function agentTurn() {
   G.agentBusy = true;
   let r;
   try {
-    if (S.agentModel === 'demo') { await sleep(500); r = demoAgent(c, S.lang); }
-    else {
-      const messages = [
-        { role: 'system', content: agentSystemPrompt(c, S.lang, S.script, S.playerName) },
-        ...c.history.filter((m) => m.role !== 'sys').map((m) => ({ role: m.role === 'agent' ? 'assistant' : 'user', content: m.text })),
-      ];
-      r = await chatJSON(S.base, S.agentModel, messages, { temperature: Number(S.temperature) });
-    }
+    r = await aiAgentTurn(c, S);
   } catch (e) {
     addMsg(c, 'sys', `KI-Spieler-Fehler (${e.message}) – Demo-Agent übernimmt.`);
-    r = demoAgent(c, S.lang);
+    r = await aiAgentTurn(c, { ...S, agentModel: 'demo' });
   }
+  c.phase = r.phase;
+  refreshAgentChip();
   if (G.call !== c || c.status !== 'active') { G.agentBusy = false; return; }
 
   // Nur einlösen, wenn der Anrufer den Code wirklich genannt hat
@@ -485,9 +492,14 @@ function phoneView() {
       <button class="btn-ico" id="btn-spk" title="Sprachausgabe">${ICONS.speaker}</button>
       <button class="btn-ico" id="btn-mic" title="Spracheingabe">${ICONS.mic}</button></div>
   </div>`);
-  $('#chat-form', el).onsubmit = (e) => { e.preventDefault(); const i = $('#chat-in', el); const v = i.value; i.value = ''; sendAgent(v); };
+  $('#chat-form', el).onsubmit = (e) => {
+    e.preventDefault();
+    const i = $('#chat-in', el);
+    if (G.call?.busy) { i.classList.add('shake'); setTimeout(() => i.classList.remove('shake'), 400); return; }
+    const v = i.value; i.value = ''; sendAgent(v);
+  };
   $('#btn-hang', el).onclick = hangUp;
-  $('#btn-spk', el).onclick = () => { S.tts = !S.tts; saveSettings(); if (!S.tts) speechSynthesis?.cancel(); renderPhone(); };
+  $('#btn-spk', el).onclick = () => { S.tts = !S.tts; saveSettings(); if (!S.tts) window.speechSynthesis?.cancel(); renderPhone(); };
   $('#btn-mic', el).onclick = toggleMic;
   return el;
 }
@@ -506,19 +518,29 @@ function renderPhone() {
     $('#t-pct', root).textContent = c ? Math.round(c.trust) + '%' : '–';
     $('#t-bar', root).style.width = c ? c.trust + '%' : '0';
     $('#p-name', root).textContent = c ? c.p.name : 'KOTLANA SUPPORT LINE';
-    $('#p-img', root).innerHTML = c ? `<div class="ring">${avatarSVG(c.p.avatar, 'neutral')}</div>` : `<div style="color:#cde;font-size:64px">☎</div>`;
+    const imgKey = c ? 'ring' + c.p.id : 'idle';
+    if ($('#p-img', root).dataset.key !== imgKey) {
+      $('#p-img', root).dataset.key = imgKey;
+      $('#p-img', root).innerHTML = c ? `<div class="ring">${avatarSVG(c.p.avatar, 'neutral')}</div>` : `<div style="color:#cde;font-size:64px">☎</div>`;
+    }
     chat.hidden = true; btns.hidden = true;
     if (!idle) { idle = h('<div class="idle"></div>'); root.insertBefore(idle, chat); }
     if (c) {
+      idle.dataset.mode = 'ring';
+      root.dataset.avatar = '';
       idle.innerHTML = `<div style="font-size:18px">📞 Eingehender Anruf<br><b style="color:#fff">${esc(c.p.name)}</b></div>
         <div class="ring-actions"><button class="big-btn" id="acc">Annehmen</button><button class="big-btn red" id="dec">Ablehnen</button></div>`;
       $('#acc', idle).onclick = acceptCall;
       $('#dec', idle).onclick = declineCall;
     } else {
       const secs = G.nextCallAt ? Math.max(0, Math.round((G.nextCallAt - Date.now()) / 1000)) : null;
-      idle.innerHTML = `<div>Warte auf den nächsten Anruf…${secs != null ? `<br><span class="muted">ca. ${secs}s</span>` : ''}</div>
-        <button class="big-btn blue" id="now">Jetzt Anruf holen</button>`;
-      $('#now', idle).onclick = () => { clearTimeout(G.nextCallTimer); ringCall(); };
+      if (idle.dataset.mode !== 'wait') {
+        idle.dataset.mode = 'wait';
+        idle.innerHTML = `<div>Warte auf den nächsten Anruf…<br><span class="muted" id="wait-secs"></span></div>
+          <button class="big-btn blue" id="now">Jetzt Anruf holen</button>`;
+        $('#now', idle).onclick = () => { clearTimeout(G.nextCallTimer); ringCall(); };
+      }
+      $('#wait-secs', idle).textContent = secs != null ? `ca. ${secs}s` : '';
     }
     return;
   }
@@ -530,7 +552,11 @@ function renderPhone() {
   bar.style.width = c.trust + '%';
   bar.style.background = c.trust >= c.p.threshold ? '#4ade80' : c.trust < 30 ? '#f87171' : '';
   $('#p-name', root).textContent = c.p.name;
-  if (root.dataset.avatar !== c.p.id + c.mood) { $('#p-img', root).innerHTML = avatarSVG(c.p.avatar, c.mood); root.dataset.avatar = c.p.id + c.mood; }
+  if (root.dataset.avatar !== c.p.id + c.mood) {
+    $('#p-img', root).innerHTML = avatarSVG(c.p.avatar, c.mood);
+    $('#p-img', root).dataset.key = 'active';
+    root.dataset.avatar = c.p.id + c.mood;
+  }
   const log = $('#chat-log', root);
   if (log.dataset.call !== String(c.started.getTime())) {
     log.dataset.call = c.started.getTime();
@@ -638,6 +664,7 @@ APPS.giftcards = {
       const v = onlyDigits($('#gc-code', el).value);
       const r = tryClaim('giftcard', (c) => v.length >= 6 && v === onlyDigits(c.secret.code));
       const n = $('#gc-note', el);
+      n.dataset.hold = Date.now() + 3500;
       if (r.error) { n.className = 'note err'; n.textContent = r.error; $('#gc-ver', el).textContent = ''; }
       else { n.className = 'note'; n.textContent = `Scam complete — ${money(r.ok.p.amount)} earned.`; $('#gc-ver', el).textContent = 'Verified ✓'; setTimeout(() => APPS.giftcards.refresh(true), 4000); }
     };
@@ -649,7 +676,7 @@ APPS.giftcards = {
     const c = claimTarget('giftcard');
     const n = $('#gc-note', w.body);
     if (clear) { $('#gc-code', w.body).value = ''; $('#gc-ver', w.body).textContent = ''; }
-    if (n.textContent.startsWith('Scam complete') && !clear) return;
+    if (!clear && Date.now() < Number(n.dataset.hold || 0)) return;
     n.className = c ? 'note' : 'note muted';
     n.textContent = c ? `Enter the information for ${money(c.p.amount)}.` : 'Kein Anrufer mit Gutscheinkarte – warte auf den passenden Anruf.';
   },
@@ -670,6 +697,7 @@ APPS.creditcard = {
       const num = onlyDigits($('#cc-num', el).value), cvv = onlyDigits($('#cc-cvv', el).value), exp = onlyDigits($('#cc-exp', el).value);
       const r = tryClaim('creditcard', (c) => num === onlyDigits(c.secret.number) && cvv === c.secret.cvv && (!exp || exp === onlyDigits(c.secret.exp)));
       const n = $('#cc-note', el);
+      n.dataset.hold = Date.now() + 3500;
       if (r.error) { n.className = 'note err'; n.textContent = r.error; }
       else { n.className = 'note'; n.textContent = `Charge complete — ${money(r.ok.p.amount)} earned.`; $('#cc-ver', el).textContent = 'Verified ✓'; setTimeout(() => APPS.creditcard.refresh(true), 4000); }
     };
@@ -680,7 +708,7 @@ APPS.creditcard = {
     const c = claimTarget('creditcard');
     const n = $('#cc-note', w.body);
     if (clear) { ['cc-num', 'cc-exp', 'cc-cvv'].forEach((i) => ($('#' + i, w.body).value = '')); $('#cc-ver', w.body).textContent = ''; }
-    if (n.textContent.startsWith('Charge complete') && !clear) return;
+    if (!clear && Date.now() < Number(n.dataset.hold || 0)) return;
     n.className = c ? 'note' : 'note muted';
     n.textContent = c ? `Enter the card details for ${money(c.p.amount)}.` : 'Kein Anrufer mit Kreditkarte – warte auf den passenden Anruf.';
   },
@@ -688,17 +716,29 @@ APPS.creditcard = {
 };
 
 APPS.script = {
-  title: 'Script', w: 520, h: 480, x: innerWidth - 560, y: 20,
+  title: 'Script', w: 560, h: 620, x: innerWidth - 560, y: 20,
   render() {
     const el = h(`<div class="app"><p class="muted" style="margin-top:0">Dein Call-Script. Der KI-Spieler (Ollama) bekommt diese Notizen als Strategie mit.</p>
       <textarea class="f" id="script-ta"></textarea>
-      <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" id="script-reset">Zurücksetzen</button><span class="muted" id="script-saved"></span></div></div>`);
+      <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" id="script-reset">Zurücksetzen</button><span class="muted" id="script-saved"></span></div>
+      <h3 style="margin:18px 0 6px">🧠 KI-Gedächtnis</h3>
+      <p class="muted" style="margin:0 0 6px">Sätze, die in früheren Anrufen besonders gut oder schlecht ankamen. Der KI-Spieler lernt daraus.</p>
+      <div id="lessons"></div><button class="btn" id="lessons-clear" style="margin-top:6px">Gedächtnis löschen</button></div>`);
     const ta = $('#script-ta', el);
+    const showLessons = () => {
+      const l = lessons.load();
+      const row = (x, good) => `<div style="padding:4px 0;border-bottom:1px solid #eee"><b style="color:${good ? '#15803d' : '#b91c1c'}">${x.delta > 0 ? '+' : ''}${x.delta}</b> „${esc(x.text)}“ ${x.why ? `<span class="muted">(${esc(x.why)})</span>` : ''}</div>`;
+      $('#lessons', el).innerHTML = (l.good.map((x) => row(x, true)).join('') + l.bad.map((x) => row(x, false)).join('')) || '<p class="muted">Noch leer – lass die KI ein paar Anrufe spielen.</p>';
+    };
+    showLessons();
+    this.timer = setInterval(showLessons, 3000);
+    $('#lessons-clear', el).onclick = () => { lessons.clear(); showLessons(); };
     ta.value = S.script;
     ta.oninput = () => { S.script = ta.value; saveSettings(); $('#script-saved', el).textContent = 'gespeichert'; };
     $('#script-reset', el).onclick = () => { ta.value = S.script = DEFAULT_SCRIPT; saveSettings(); };
     return el;
   },
+  onClose() { clearInterval(this.timer); },
 };
 
 const SHOP = [
@@ -718,6 +758,9 @@ APPS.scamazon = {
   refresh() {
     const w = WM.wins.scamazon; if (!w) return;
     $('#shop-money', w.body).textContent = money(G.personal);
+    const key = G.personal + JSON.stringify(G.upgrades);
+    if (this.key === key) return;
+    this.key = key;
     const box = $('#shop', w.body);
     box.innerHTML = '';
     for (const it of SHOP) {
@@ -734,7 +777,7 @@ APPS.scamazon = {
       box.append(b);
     }
   },
-  onOpen() { this.refresh(); },
+  onOpen() { this.key = null; this.refresh(); },
 };
 
 APPS.banditcam = {
@@ -889,7 +932,8 @@ function startAutoplay(callerModel, agentModel = callerModel) {
   S.callerModel = callerModel; S.agentModel = agentModel; S.autoplay = true;
   saveSettings();
   WM.close('demo');
-  WM.open('phone'); WM.open('camera');
+  if (innerWidth >= 800) WM.open('camera');
+  WM.open('phone');
   toast(`🤖 KI-Spieler aktiv (${agentModel === 'demo' ? 'Demo' : agentModel}). Lehn dich zurück!`, 'phone');
   if (!G.call) { clearTimeout(G.nextCallTimer); ringCall(); } else agentTurn();
 }
@@ -979,8 +1023,8 @@ function boot() {
 
   setTimeout(() => {
     $('#boot').classList.add('done');
+    if (innerWidth >= 800) WM.open('camera');
     WM.open('phone');
-    WM.open('camera');
     if (firstRun) WM.open('demo');
     toast('Willkommen bei Kotlana OS! Doppelklick auf Icons öffnet Apps.', 'settings', 6000);
     scheduleNextCall(3000);
