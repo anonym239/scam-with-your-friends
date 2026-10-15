@@ -107,13 +107,8 @@ export function startRecognition({ S, call, model, onInterim, onStatus, onFinal,
   rec.interimResults = true;
   rec.maxAlternatives = 5;
   rec.continuous = true;
-  // Neuere Chrome-Versionen können Begriffe bevorzugen ("contextual biasing")
-  try {
-    if ('phrases' in rec && window.SpeechRecognitionPhrase) {
-      const words = ['Tech Support', 'Kotlana', 'Gift Card', 'Code', 'Antivirus', ...contextNames(call)];
-      rec.phrases = words.map((w) => new window.SpeechRecognitionPhrase(w, 5.0));
-    }
-  } catch {}
+  // Hinweis: rec.phrases ("contextual biasing") wird bewusst NICHT gesetzt – die Google-Erkennung in
+  // Chrome bricht damit mit "phrases-not-supported" ab. Fachwörter korrigiert stattdessen fixTranscript().
 
   const pauseMs = Math.max(800, (Number(S.micPause) || 2) * 1000);
   const segments = new Map(); // Index → Alternativen der fertigen Abschnitte
@@ -132,7 +127,8 @@ export function startRecognition({ S, call, model, onInterim, onStatus, onFinal,
     onInterim([joined(), fixTranscript(interim, call)].filter(Boolean).join(' '));
     armSilence();
   };
-  rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') onStatus?.(`Mikrofon-Fehler: ${e.error}`); };
+  const ERRORS = { 'not-allowed': 'Mikrofon blockiert – bitte im Browser erlauben', 'audio-capture': 'kein Mikrofon gefunden', network: 'Spracherkennung braucht Internet (Chrome/Edge)' };
+  rec.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') onStatus?.(ERRORS[e.error] || `Mikrofon-Fehler: ${e.error}`); };
   rec.onend = async () => {
     clearTimeout(silence);
     if (finished) return;

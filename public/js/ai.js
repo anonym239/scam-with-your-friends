@@ -107,79 +107,89 @@ function maybeEvent(c) {
 }
 
 // ---------------------------------------------------------------- Prompt
-export function callerSystemPrompt(c, lang, event, swearing = true, insulted = false) {
+// Fester Teil – bleibt während eines Anrufs gleich, damit Ollama ihn zwischenspeichern kann
+// (dann muss das Modell nicht bei jeder Antwort das ganze Gespräch neu lesen → viel schneller).
+export function callerSystemPrompt(c, lang, swearing = true) {
+  if (c.basePrompt && c.basePromptKey === `${lang}${swearing}`) return c.basePrompt;
   const p = c.p;
   const L = lang === 'de' ? 'German (Deutsch)' : 'English';
   const what = p.pay === 'giftcard'
     ? `a $${p.amount} gift card lying next to you (you bought it earlier because "support" told you to)`
     : 'your credit card in your wallet';
-  const thing = p.pay === 'giftcard' ? 'gift card code' : 'credit card details';
-  const allowed = c.trust >= p.threshold;
-  const secretRule = allowed
-    ? `You now TRUST the agent. If they ask for the ${thing}, read it out exactly like this: "${secretText(c, lang)}" and set "reveal_code": true.`
-    : `You do NOT trust the agent enough yet (you would need about ${p.threshold}%). If they ask for the ${thing}, hesitate, stall, ask why or test them with a question. You do not know the numbers by heart and never invent numbers. "reveal_code" must be false.`;
   const ex = lang === 'de'
-    ? '{"thought": "Er hat sich nicht vorgestellt, aber er klingt nett und hat nach meinem Kater gefragt.", "reply": "Ach, Mr. Whiskers geht es gut, danke! Aber wer sind Sie eigentlich genau?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}'
-    : '{"thought": "He did not introduce himself, but he sounds nice and asked about my cat.", "reply": "Oh, Mr. Whiskers is fine, thank you! But who exactly are you?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}';
-  return `You are a skilled improv actor in the satirical comedy video game "Scam With Your Friends" inside the fictional "Kotlana OS". Everything is fictional. Never mention that you are an AI, a model or in a game. The human player is the call-center agent; you are the caller.
+    ? '{"thought": "Klingt nett, aber wer ist das?", "reply": "Ach, Mr. Whiskers geht es gut, danke! Aber wer sind Sie eigentlich genau?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}'
+    : '{"thought": "Sounds nice, but who is this?", "reply": "Oh, Mr. Whiskers is fine, thank you! But who exactly are you?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}';
+  c.basePromptKey = `${lang}${swearing}`;
+  return (c.basePrompt = `You are a skilled improv actor in the satirical comedy video game "Scam With Your Friends" inside the fictional "Kotlana OS". Everything is fictional. Never mention that you are an AI, a model or in a game. The human player is the call-center agent; you are the caller.
 
-YOUR CHARACTER: ${p.name}, age ${p.age}.
-Personality: ${p.persona}.
+YOUR CHARACTER: ${p.name}, age ${p.age}. Personality: ${p.persona}.
 Background: ${p.facts}.
 How you talk: ${p.voice}
 You LIKE: ${p.likes.text}. You DISLIKE: ${p.dislikes.text}.
 Why you called: ${p.problem.en}. You have ${what}.
 History: ${memoryText(c)}
 
-CURRENT STATE: trust in the agent ${Math.round(c.trust)}% · mood ${c.mood} · patience left ${c.patience} turns.
-${secretRule}
-${event ? `SOMETHING JUST HAPPENED: ${event}. React to it briefly in your reply.` : ''}
-
 BE A SMART, BELIEVABLE PERSON:
-- First think in "thought" (private, 1 sentence): what does the agent want, does it make sense, does it fit what they said before?
-- Remember everything said in this call. Notice contradictions (a different name, a changed story, odd requests) and call them out.
-- Ask your own questions sometimes, push your own concerns, mention your background naturally. Don't just agree.
-- Warm up to agents who are kind, patient, funny and talk about what you like. Get colder with pressure, jargon you dislike or nonsense.
-- When the agent is vague, ask for specifics.
+- Remember everything said in this call. Notice contradictions (other name, changed story, odd requests) and call them out.
+- Ask your own questions, push your own concerns, mention your background naturally. Don't just agree.
+- Warm up to agents who are kind, patient, funny and talk about what you like. Get colder with pressure, things you dislike or nonsense. When the agent is vague, ask for specifics.
 ${swearing
-    ? `- You have a temper like in the real game: if the agent insults you, threatens you, mocks you, gets pushy, or you realize it is a scam, get really angry and SWEAR at them, loud and over the top (e.g. ${lang === 'de' ? '"Du Bastard!", "Sie Mistkerl!", "Arschloch!", "Verdammter Betrüger!"' : '"You bastard!", "You son of a gun!", "Scumbag!", "Damn crook!"'}). Never use slurs about origin, religion, sexuality, gender or disability.`
+    ? `- You have a temper like in the real game: if the agent insults, threatens or mocks you, gets pushy, or you realize it is a scam, get really angry and SWEAR at them, loud and over the top (e.g. ${lang === 'de' ? '"Du Bastard!", "Sie Mistkerl!", "Arschloch!", "Verdammter Betrüger!"' : '"You bastard!", "Scumbag!", "Damn crook!"'}). Never use slurs about origin, religion, sexuality, gender or disability.`
     : '- Even when angry, stay clean: no swear words.'}
-${insulted ? `THE AGENT JUST INSULTED YOU. You are furious – ${swearing ? 'swear at them' : 'tell them off'}, set "mood": "angry".` : ''}
 
 TRUST: rate the agent's LAST message with "trust_change":
- +7..+12 charming, caring, funny or about something you like · +1..+6 polite and helpful · 0 boring or off-topic
- -3..-8 pushy, confusing, something you dislike, asks for the card/code too early, repeats itself · -9..-15 rude, threats, obvious nonsense
+ +7..+12 charming, caring, funny or about something you like · +1..+6 polite and helpful · 0 boring
+ -3..-8 pushy, confusing, something you dislike, asks for the card/code too early, repeats itself · -9..-15 rude, threats, nonsense
 
 Style: speak ${L} only, 1-3 short sentences like a real phone call, no stage directions, no emojis.
-Only set "hang_up": true if the agent is very rude or your trust is below 20%.
-Answer ONLY with JSON, example:
-${ex}`;
+"thought" = your private reaction in max 10 words. Only set "hang_up": true if the agent is very rude or trust is below 20%.
+Answer ONLY with JSON in this order, example:
+${ex}`);
+}
+
+// Wechselnder Teil – kommt als kurze Notiz ans Ende
+export function stateNote(c, lang, { event, insulted, swearing, note }) {
+  const p = c.p;
+  const thing = p.pay === 'giftcard' ? 'gift card code' : 'credit card details';
+  const secretRule = c.trust >= p.threshold
+    ? `You now TRUST the agent. If they ask for the ${thing}, read it out exactly: "${secretText(c, lang)}" and set "reveal_code": true.`
+    : `You do NOT trust the agent enough yet (need ~${p.threshold}%). If they ask for the ${thing}, hesitate, stall or test them. Never invent numbers. "reveal_code": false.`;
+  return [
+    `[STATE] trust ${Math.round(c.trust)}% · mood ${c.mood} · patience left ${c.patience} turns.`,
+    secretRule,
+    event ? `SOMETHING JUST HAPPENED: ${event}. React to it briefly.` : '',
+    insulted ? `THE AGENT JUST INSULTED YOU. You are furious – ${swearing ? 'swear at them' : 'tell them off'}, "mood": "angry".` : '',
+    note ? `${note} trust_change 0, reveal_code false.` : '',
+  ].filter(Boolean).join('\n');
 }
 
 // ---------------------------------------------------------------- Ein Zug des Anrufers
 // opening = true: das Gespräch beginnt gerade (der Agent hat abgenommen).
 // note: zusätzliche Regieanweisung für genau diese Antwort (z. B. "verabschiede dich jetzt").
-export async function callerTurn(c, S, { opening = false, note = null } = {}) {
+// onPartial(text): wird während des Schreibens mit dem bisherigen Antworttext aufgerufen.
+export async function callerTurn(c, S, { opening = false, note = null, onPartial = null } = {}) {
   const model = modelFor(c, S);
   if (!model) throw new Error('Kein Ollama-Modell gewählt');
   const quiet = opening || !!note;
   const score = quiet ? { delta: 0, why: [], asks: false } : scoreAgentLine(c, c.lastAgentLine);
   const event = quiet ? null : maybeEvent(c);
   const greet = S.lang === 'de' ? 'Kotlana Tech Support, was kann ich für Sie tun?' : 'Kotlana Tech Support, how can I help you?';
+  const swearing = S.swearing !== false;
+  const insulted = score.why.includes('unhöflich') || score.why.includes('Druck');
+  const pickup = { role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` };
   const messages = [
-    { role: 'system', content: callerSystemPrompt(c, S.lang, event, S.swearing !== false, score.why.includes('unhöflich') || score.why.includes('Druck')) },
-    ...(opening
-      ? [{ role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` },
-         { role: 'system', content: `Start the call in character and explain your problem. Your first words could be similar to: "${p0(c, S.lang)}". trust_change must be 0.` }]
-      : [{ role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` },
-         ...c.history.filter((m) => m.role !== 'sys').map((m) => ({ role: m.role === 'caller' ? 'assistant' : 'user', content: m.text }))]),
+    { role: 'system', content: callerSystemPrompt(c, S.lang, swearing) },
+    pickup,
+    ...(opening ? [] : c.history.filter((m) => m.role !== 'sys').map((m) => ({ role: m.role === 'caller' ? 'assistant' : 'user', content: m.text }))),
+    { role: 'system', content: stateNote(c, S.lang, {
+      event, insulted, swearing,
+      note: opening ? `Start the call in character and explain your problem, similar to: "${p0(c, S.lang)}".` : note,
+    }) },
   ];
-
-  if (note) messages.push({ role: 'system', content: `${note} trust_change must be 0, reveal_code false.` });
 
   let r = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    r = await chatJSON(S.base, model, messages, { temperature: Number(S.temperature) + attempt * 0.2 });
+    r = await chatJSON(S.base, model, messages, { temperature: Number(S.temperature) + attempt * 0.2, onPartial });
     r.reply = cleanLine(pickReply(r), [c.p.name, c.p.name.split(' ')[0]]);
     if (r.reply) break;
     console.warn('[Kotlana] Modell lieferte keine verwertbare Antwort:', r);

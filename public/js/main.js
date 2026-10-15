@@ -1,6 +1,6 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
-import { listModels, version, chatJSON } from './ollama.js';
+import { listModels, version, warmUp } from './ollama.js';
 import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard } from './callers.js';
 import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor } from './ai.js';
@@ -26,7 +26,7 @@ NIEMALS: drohen, hetzen, beleidigen (Vertrauen sinkt!)`;
 
 const DEFAULTS = {
   base: '/ollama', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
-  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: true, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, playerName: 'Agent', script: DEFAULT_SCRIPT,
+  tts: false, coworkers: true, recording: true, showThoughts: false, micAI: false, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, playerName: 'Agent', script: DEFAULT_SCRIPT,
 };
 const store = {
   get(k, d) { try { const v = localStorage.getItem('kotlana:' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
@@ -36,6 +36,8 @@ const S = { ...DEFAULTS, ...store.get('settings', {}) };
 // Aufräumen aus älteren Versionen (Demo-Modus und KI-Spieler gibt es nicht mehr)
 if (S.callerModel === 'demo') S.callerModel = '';
 delete S.agentModel; delete S.autoplay;
+// v1.2: Ollama-Korrektur der Spracheingabe standardmäßig aus (kostet eine zusätzliche Anfrage = Wartezeit)
+if (!S.v12) { S.micAI = false; S.v12 = true; store.set('settings', S); }
 const saveSettings = () => { store.set('settings', S); configureSounds(S); refreshModelChip(); };
 configureSounds(S);
 let MODELS = [];
@@ -247,6 +249,7 @@ function ringCall() {
   };
   G.nextCallAt = null;
   WM.open('phone'); // holt das Telefon nach vorn, auch wenn es minimiert oder verdeckt ist
+  warmUp(S.base, modelFor(G.call, S)); // Modell schon beim Klingeln laden
   renderPhone();
   startRing();
 }
@@ -320,7 +323,9 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
   setTalking(true);
   let r;
   try {
-    r = await callerTurn(c, S, { opening, note });
+    // Antwort erscheint schon während das Modell schreibt
+    const onPartial = (t) => { const d = typing && typing.querySelector('div'); if (d) { d.textContent = t; typing.classList.remove('typing'); $('#chat-log').scrollTop = 1e9; } };
+    r = await callerTurn(c, S, { opening, note, onPartial });
   } catch (e) {
     typing?.remove();
     setTalking(false);
@@ -859,12 +864,13 @@ APPS.settings = {
       <label class="toggle"><input type="checkbox" id="set-swear"> 🤬 Anrufer dürfen fluchen, wenn du frech wirst (wie im echten Spiel)</label>
       <label class="toggle"><input type="checkbox" id="set-tts"> 🔊 Sprachausgabe: Anrufer sprechen laut</label>
       <div class="kv" style="margin:8px 0"><label>🎤 Mikrofon-Sprache</label><select class="f" id="set-miclang">${Object.entries(MIC_LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
-      <label class="toggle"><input type="checkbox" id="set-micai"> 🎤 Spracherkennung mit Ollama korrigieren (versteht „Tech“ statt „Text“, etwas langsamer)</label>
+      <label class="toggle"><input type="checkbox" id="set-micai"> 🎤 Spracherkennung mit Ollama korrigieren (noch genauer, aber jede Eingabe dauert länger)</label>
       <div class="kv" style="margin:8px 0"><label>🎤 Sprechpause bis zum Senden</label><div class="row" style="align-items:center"><input type="range" min="1" max="5" step="0.5" id="set-micpause" /><span id="set-micpause-v" style="flex:none;width:44px"></span></div>
         <label>🔈 Lautstärke der Sounds</label><div class="row" style="align-items:center"><input type="range" min="0" max="1" step="0.05" id="set-vol" /><label class="toggle" style="flex:none;margin:0"><input type="checkbox" id="set-sounds"> an</label></div></div>
       <label class="toggle"><input type="checkbox" id="set-micsend"> 🎤 Nach dem Sprechen sofort senden (aus = erst prüfen, dann Enter)</label>
       <label class="toggle"><input type="checkbox" id="set-cow"> 👥 Kollegen verdienen fürs Team mit</label>
-      <p class="muted">Die Anrufer werden immer von deinem Ollama-Modell gespielt. Größere Modelle (z. B. <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma2:9b</code>) spielen deutlich schlauer als sehr kleine.<br>
+      <p class="muted">Die Anrufer werden immer von deinem Ollama-Modell gespielt. <b>Schnell:</b> <code>llama3.2:3b</code>, <code>qwen2.5:3b</code>, <code>gemma3:4b</code> · <b>Schlauer, braucht eine gute Grafikkarte:</b> <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma3:12b</code>.
+      Denk-Modelle (z. B. deepseek-r1) sind sehr langsam. Ob Ollama deine Grafikkarte nutzt, zeigt <code>ollama ps</code> (Spalte PROCESSOR: „100% GPU“).<br>
       „/ollama“ nutzt den eingebauten Proxy (empfohlen). Eine direkte URL wie <code>http://localhost:11434</code> braucht <code>OLLAMA_ORIGINS=*</code>.</p></div>`);
   },
   async refresh() {
@@ -897,6 +903,7 @@ APPS.settings = {
     $('#set-temp', b).addEventListener('input', () => ($('#set-temp-v', b).textContent = S.temperature));
     $('#set-caller', b).onchange = (e) => {
       S.callerModel = e.target.value; saveSettings();
+      warmUp(S.base, S.callerModel);
       if (S.callerModel) toast(`🦙 ${S.callerModel} spielt jetzt die Anrufer.`, 'settings', 3500);
       this.refresh();
       if (!G.call) scheduleNextCall(2500); else renderPhone();
@@ -956,6 +963,7 @@ async function checkOllama() {
   }
   APPS.settings.refresh?.();
   refreshModelChip();
+  if (readyToPlay() && was !== true) warmUp(S.base, S.callerModel);
   // Kann jetzt gespielt werden und klingelt nichts? Dann den nächsten Anruf planen.
   if (readyToPlay() && !G.call && !G.nextCallAt) scheduleNextCall(2500);
   else renderPhone();

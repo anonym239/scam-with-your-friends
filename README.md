@@ -78,6 +78,15 @@ und es gibt auch keine vorgefertigten Ersatz-Antworten.
 
 - **Temperament:** Wirst du frech, setzt du jemanden unter Druck oder fliegt der Betrug auf, flucht der Anrufer wie im echten Spiel („Du Bastard!“). Das lässt sich in den Einstellungen abschalten.
 
+### ⚡ Schnelle Antworten
+
+- **Streaming:** Die Antwort erscheint im Telefon, während das Modell noch schreibt.
+- **Prompt-Zwischenspeicher:** Der Prompt-Anfang bleibt während eines Anrufs gleich. Ollama muss das Gespräch deshalb nicht bei jeder Antwort neu lesen.
+- **Modell bleibt geladen** (`keep_alive` 30 min) und wird schon beim Klingeln vorgeladen.
+- **Denken ist aus** (`think: false`), so trödeln auch Denk-Modelle weniger.
+- Für flüssige Gespräche: `llama3.2:3b`, `qwen2.5:3b` oder `gemma3:4b`. Mit guter Grafikkarte auch 7–12B-Modelle.
+  Ob die Grafikkarte genutzt wird, zeigt `ollama ps` (Spalte PROCESSOR sollte „100% GPU“ sein).
+
 ### 📋 Code mit einem Klick einfügen
 
 Nennt der Anrufer einen Gutschein-Code oder Kartendaten, erscheinen unter seiner Nachricht **„📋 Kopieren“** und **„➜ Ins Formular einfügen“**.
@@ -93,7 +102,7 @@ Alle Sounds werden live erzeugt. Lautstärke und an/aus stellst du in den Einste
 Mikrofon-Knopf im Telefon (Chrome oder Edge). Damit „Tech Support“ nicht als „Text Support“ ankommt:
 1. Der Browser liefert mehrere Varianten, und die mit den passenden Fachwörtern gewinnt.
 2. Ein Fachwörterbuch korrigiert typische Verhörer (Tech Support, Kotlana, Gift Card, CVV …) und die Namen aus dem Gespräch (Whiskers, Timmy …).
-3. Optional korrigiert dein Ollama-Modell den Satz mit Blick auf das Gespräch.
+3. Optional (standardmäßig aus, weil langsamer) korrigiert dein Ollama-Modell den Satz mit Blick auf das Gespräch.
 
 Die Erkennung hört durchgehend zu und sendet erst, wenn du eine einstellbare Zeit still bist (Standard 2 s) oder erneut aufs Mikrofon klickst. Kurze Denkpausen schneiden nichts ab.
 In den Einstellungen: Mikrofon-Sprache (auch Österreich und Schweiz), Sprechpause, Ollama-Korrektur an/aus, „sofort senden“ oder erst prüfen.

@@ -17,40 +17,79 @@ export async function version(base) {
   return j.version;
 }
 
-let thinkUnsupported = false;
+// Modelle, die den Parameter "think" nicht kennen (pro Modell gemerkt)
+const noThink = new Set((() => { try { return JSON.parse(localStorage.getItem('kotlana:nothink')) || []; } catch { return []; } })());
+const KEEP_ALIVE = '30m'; // Modell bleibt im Speicher → kein langes Neuladen zwischen den Anrufen
 
-// Holt eine JSON-Antwort vom Modell. Robust gegen <think>-Blöcke, Text um das JSON herum,
-// hängende Anfragen (Timeout) und Modelle, die den "think"-Parameter nicht kennen.
-export async function chatJSON(base, model, messages, { temperature = 0.8, timeout = 120000 } = {}) {
+// Lädt das Modell schon vorab in den Speicher (z. B. wenn es klingelt)
+export function warmUp(base, model) {
+  if (!model) return;
+  fetch(clean(base) + '/api/generate', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model, prompt: '', keep_alive: KEEP_ALIVE }),
+  }).catch(() => {});
+}
+
+// Liest den bisher geschriebenen Wert von "reply" aus unfertigem JSON
+function partialReply(text) {
+  const m = text.match(/"(?:reply|antwort|response|answer)"\s*:\s*"((?:[^"\\]|\\.)*)/i);
+  if (!m) return '';
+  try { return JSON.parse('"' + m[1].replace(/\\$/, '') + '"'); } catch { return m[1]; }
+}
+
+// Holt eine JSON-Antwort vom Modell – gestreamt, damit der Text schon beim Schreiben erscheint.
+// Robust gegen <think>-Blöcke, Text um das JSON herum, hängende Anfragen und Modelle ohne "think"-Parameter.
+export async function chatJSON(base, model, messages, { temperature = 0.8, timeout = 120000, onPartial = null, maxTokens = 260 } = {}) {
   const send = async (withThink) => {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeout);
+    let timer = setTimeout(() => ctrl.abort(), timeout);
     try {
-      const body = { model, messages, stream: false, format: 'json', options: { temperature, num_predict: 500, num_ctx: 4096 } };
+      const body = { model, messages, stream: true, format: 'json', keep_alive: KEEP_ALIVE, options: { temperature, num_predict: maxTokens, num_ctx: 4096 } };
       if (withThink) body.think = false;
       const r = await fetch(clean(base) + '/api/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify(body),
       });
-      const j = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
-      if (!r.ok || j.error) throw new Error(j.error || `HTTP ${r.status}`);
-      return j;
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '', content = '', thinking = '', shown = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), timeout); // Zeitlimit gilt pro Pause, nicht für die ganze Antwort
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const j = JSON.parse(line);
+          if (j.error) throw new Error(j.error);
+          content += j.message?.content || '';
+          thinking += j.message?.thinking || '';
+          if (onPartial) { const p = partialReply(content); if (p && p !== shown) { shown = p; onPartial(p); } }
+        }
+      }
+      return content || thinking;
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error(`Zeitüberschreitung nach ${timeout / 1000}s`);
+      if (e.name === 'AbortError') throw new Error(`Zeitüberschreitung (${timeout / 1000}s ohne Antwort)`);
       throw e;
     } finally {
       clearTimeout(timer);
     }
   };
-  let j;
+  let text;
   try {
-    j = await send(!thinkUnsupported);
+    text = await send(!noThink.has(model));
   } catch (e) {
-    if (thinkUnsupported || !/think/i.test(e.message)) throw e;
-    thinkUnsupported = true;
-    j = await send(false);
+    if (noThink.has(model) || !/think/i.test(e.message)) throw e;
+    noThink.add(model);
+    try { localStorage.setItem('kotlana:nothink', JSON.stringify([...noThink])); } catch {}
+    text = await send(false);
   }
-  // Manche Denk-Modelle liefern den Text nur im "thinking"-Feld
-  return parseLooseJSON(j.message?.content || j.message?.thinking || '');
+  return parseLooseJSON(text);
 }
 
 export function parseLooseJSON(text) {
