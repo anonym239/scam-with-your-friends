@@ -334,14 +334,23 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
     c.busy = false;
     if (G.call !== c || c.status !== 'active') return;
     if (farewell) return endCall(farewell);
+    // Einmal still automatisch neu versuchen (kurze Aussetzer), erst dann den Fehler zeigen.
+    if (!c._autoRetried) {
+      c._autoRetried = true;
+      await sleep(800);
+      if (G.call === c && c.status === 'active') return callerRespond(c, { opening, note, farewell });
+      return;
+    }
+    c._autoRetried = false;
     // Kein Ersatz-Text: Ollama ist der Anrufer. Fehler zeigen und erneut versuchen lassen.
-    const m = addMsg(c, 'sys', `Ollama antwortet nicht: ${e.message}`, { retry: true });
+    const m = addMsg(c, 'sys', `Ollama antwortet gerade nicht: ${e.message}`, { retry: true });
     c.retry = () => { m.retry = false; $('.msg.sys .retry')?.closest('.msg')?.remove(); callerRespond(c, { opening, note, farewell }); };
     renderPhone();
     return;
   }
   typing?.remove();
   setTalking(false);
+  c._autoRetried = false;
   if (G.call !== c || c.status !== 'active') return;
 
   // Upgrades verstärken positive Reaktionen

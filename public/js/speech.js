@@ -84,7 +84,7 @@ ${candidates.map((c, i) => `${i + 1}) ${c}`).join('\n')}
 Return the sentence the agent most likely said. Fix misheard words using the context (e.g. "Text Support" -> "Tech Support", names of the caller). Keep the language, wording and meaning; do not add, answer or rephrase anything.
 Answer ONLY with JSON: {"text": "<corrected sentence>"}`;
   try {
-    const r = await chatJSON(S.base, model, [{ role: 'user', content: prompt }], { temperature: 0, timeout: 15000 });
+    const r = await chatJSON(S.base, model, [{ role: 'user', content: prompt }], { temperature: 0, timeout: 15000, firstTimeout: 20000, retries: 0 });
     const t = String(r.text || '').trim();
     // Sicherheitsnetz: keine komplett neuen Sätze akzeptieren
     if (!t || t.length > candidates[0].length * 1.6 + 20) return candidates[0];

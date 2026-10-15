@@ -46,13 +46,21 @@ function proxyToOllama(req, res) {
     (r) => {
       res.writeHead(r.statusCode || 502, { 'content-type': r.headers['content-type'] || 'application/json' });
       r.pipe(res);
+      // Bricht Ollama die Antwort mittendrin ab, die Verbindung zum Browser sauber schliessen,
+      // damit der Client ein Stream-Ende sieht (und neu versuchen kann) statt ewig zu haengen.
+      r.on('error', () => res.destroy());
+      r.on('aborted', () => res.destroy());
+      r.on('close', () => { if (!res.writableEnded) res.end(); });
     }
   );
   upstream.on('error', (e) => {
-    if (res.headersSent) return res.end();
+    if (res.headersSent) return res.destroy();
     res.writeHead(502, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: `Ollama nicht erreichbar unter ${OLLAMA}: ${e.message}` }));
   });
+  // Bricht der Browser ab, auch die Ollama-Anfrage beenden
+  req.on('aborted', () => upstream.destroy());
+  res.on('close', () => upstream.destroy());
   req.pipe(upstream);
 }
 

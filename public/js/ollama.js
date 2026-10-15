@@ -39,10 +39,15 @@ function partialReply(text) {
 
 // Holt eine JSON-Antwort vom Modell – gestreamt, damit der Text schon beim Schreiben erscheint.
 // Robust gegen <think>-Blöcke, Text um das JSON herum, hängende Anfragen und Modelle ohne "think"-Parameter.
-export async function chatJSON(base, model, messages, { temperature = 0.8, timeout = 120000, onPartial = null, maxTokens = 260 } = {}) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function chatJSON(base, model, messages, { temperature = 0.8, timeout = 45000, firstTimeout = 300000, onPartial = null, maxTokens = 260, retries = 2 } = {}) {
   const send = async (withThink) => {
     const ctrl = new AbortController();
-    let timer = setTimeout(() => ctrl.abort(), timeout);
+    // Beim allerersten Datenpaket darf es laenger dauern (Modell wird evtl. erst in den Speicher geladen).
+    let gotData = false;
+    let timer = setTimeout(() => ctrl.abort(), firstTimeout);
+    const arm = () => { clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), gotData ? timeout : firstTimeout); };
     try {
       const body = { model, messages, stream: true, format: 'json', keep_alive: KEEP_ALIVE, options: { temperature, num_predict: maxTokens, num_ctx: 8192 } };
       if (withThink) body.think = false;
@@ -51,45 +56,62 @@ export async function chatJSON(base, model, messages, { temperature = 0.8, timeo
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
-        throw new Error(j.error || `HTTP ${r.status}`);
+        const err = new Error(j.error || `HTTP ${r.status}`);
+        err.http = r.status;
+        throw err;
       }
       const reader = r.body.getReader();
       const dec = new TextDecoder();
-      let buf = '', content = '', thinking = '', shown = '';
+      let buf = '', content = '', thinking = '', shown = '', finished = false;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
-        clearTimeout(timer); timer = setTimeout(() => ctrl.abort(), timeout); // Zeitlimit gilt pro Pause, nicht für die ganze Antwort
+        gotData = true; arm(); // Zeitlimit gilt pro Pause, nicht fuer die ganze Antwort
         buf += dec.decode(value, { stream: true });
         let nl;
         while ((nl = buf.indexOf('\n')) >= 0) {
           const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
           if (!line) continue;
-          const j = JSON.parse(line);
+          let j;
+          try { j = JSON.parse(line); } catch { continue; } // kaputte/halbe Zeile ueberspringen
           if (j.error) throw new Error(j.error);
           content += j.message?.content || '';
           thinking += j.message?.thinking || '';
+          if (j.done) finished = true;
           if (onPartial) { const p = partialReply(content); if (p && p !== shown) { shown = p; onPartial(p); } }
         }
       }
+      // Stream endete ohne Abschluss-Signal → Ollama/Proxy hat die Verbindung mittendrin gekappt
+      if (!finished) throw new Error('Verbindung mittendrin unterbrochen (stream abgebrochen)');
       return content || thinking;
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error(`Zeitüberschreitung (${timeout / 1000}s ohne Antwort)`);
+      if (e.name === 'AbortError') throw new Error(gotData ? `Zeitueberschreitung (${timeout / 1000}s ohne neue Daten)` : `Modell antwortet nicht (nach ${firstTimeout / 1000}s) – laedt es noch?`);
       throw e;
     } finally {
       clearTimeout(timer);
     }
   };
-  let text;
-  try {
-    text = await send(!noThink.has(model));
-  } catch (e) {
-    if (noThink.has(model) || !/think/i.test(e.message)) throw e;
-    noThink.add(model);
-    try { localStorage.setItem('kotlana:nothink', JSON.stringify([...noThink])); } catch {}
-    text = await send(false);
+  // Netzwerk-/Verbindungsfehler automatisch ein paar Mal erneut versuchen (kurze Aussetzer)
+  const transient = (m) => /network|fetch|load failed|ECONNRESET|ECONNREFUSED|terminated|aborted|Zeitueberschreitung|stream|body|connection|reset|closed|disconnect|socket|typeerror/i.test(m) && !/HTTP 4/.test(m);
+  let text, lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      try {
+        text = await send(!noThink.has(model));
+      } catch (e) {
+        if (noThink.has(model) || !/think/i.test(e.message)) throw e;
+        noThink.add(model);
+        try { localStorage.setItem('kotlana:nothink', JSON.stringify([...noThink])); } catch {}
+        text = await send(false);
+      }
+      return parseLooseJSON(text);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries && transient(e.message)) { await sleep(600 * (attempt + 1)); continue; }
+      throw e;
+    }
   }
-  return parseLooseJSON(text);
+  throw lastErr;
 }
 
 export function parseLooseJSON(text) {

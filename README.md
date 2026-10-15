@@ -61,6 +61,14 @@ Danach wählst du in den Einstellungen dein Modell, und der erste Anruf kommt.
 
 Erreiche die **Quota**, bevor der Timer der **Performance Review** abläuft. Sonst wirst du gefeuert.
 
+### 🔌 Verbindungs-Abbrüche
+
+Reißt die Verbindung zu Ollama mitten in einer Antwort ab, versucht das Spiel es automatisch neu und spielt
+in den allermeisten Fällen ohne sichtbare Störung weiter. Erst wenn Ollama dauerhaft nicht antwortet (z. B.
+abgestürzt), erscheint im Chat ein Hinweis mit einem Knopf **„Nochmal versuchen“**. Der eingebaute Proxy
+schließt abgebrochene Streams jetzt sauber, sodass nichts mehr endlos hängt. Beim ersten Anruf nach dem Start
+darf das Modell etwas länger brauchen (es wird erst in den Speicher geladen).
+
 ### 🎚️ Schwierigkeit einstellen
 
 In den Einstellungen gibt es fünf Stufen von **Sehr leicht** bis **Schwer**. Leichtere Stufen bedeuten:
