@@ -20,20 +20,54 @@ button { font-family: inherit; cursor: pointer; }
 [hidden] { display: none !important; }
 
 /* ---------- Boot ---------- */
-#boot { position: fixed; inset: 0; z-index: 9999; background: #0c1a2b; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; transition: opacity .5s; }
-#boot.done { opacity: 0; pointer-events: none; }
-.boot-logo { width: 96px; height: 96px; border-radius: 24px; background: linear-gradient(135deg, #2a8ee4, #22a447); display: grid; place-items: center; font-size: 56px; font-weight: 900; box-shadow: 0 10px 40px #2a8ee466; }
+#boot { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(circle at 50% 38%, #12304f, #0a1626 70%); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; transition: opacity .55s ease, transform .55s ease; }
+#boot.done { opacity: 0; transform: scale(1.08); pointer-events: none; }
+
+.boot-stage { position: relative; width: 132px; height: 132px; display: grid; place-items: center; }
+.boot-logo { width: 96px; height: 96px; filter: drop-shadow(0 10px 30px #2a8ee455); }
+.boot-logo svg { width: 96px; height: 96px; display: block; }
+.boot-check { position: absolute; right: -6px; bottom: -6px; width: 34px; height: 34px; border-radius: 50%; background: #22a447; color: #fff; font-size: 20px; font-weight: 900; display: grid; place-items: center; transform: scale(0); box-shadow: 0 4px 12px #0006; }
+/* Lade-Ring um das Logo, nur während des Hochfahrens */
+.boot-ring { position: absolute; inset: 0; border-radius: 50%; border: 4px solid #ffffff14; border-top-color: var(--teal); opacity: 0; }
+#boot.starting .boot-ring { opacity: 1; animation: spin .9s linear infinite; }
+#boot.ready .boot-ring { opacity: 0; }
+#boot.starting .boot-logo { animation: logoFloat 1.6s ease-in-out infinite; }
+#boot.ready .boot-logo { animation: logoPop .6s cubic-bezier(.2, 1.7, .4, 1); }
+#boot.ready .boot-check { animation: checkPop .5s .15s cubic-bezier(.2, 1.7, .4, 1) forwards; }
+
 .boot-title { font-size: 34px; font-weight: 800; letter-spacing: 1px; }
+#boot.ready .boot-title { animation: glow 1s ease; }
 .boot-sub { opacity: .7; font-size: 14px; }
-.boot-bar { width: 240px; height: 6px; background: #ffffff22; border-radius: 3px; overflow: hidden; }
-.boot-bar div { height: 100%; width: 0; background: var(--teal); }
-#boot.starting .boot-bar div { animation: boot 1.6s ease forwards; }
-#boot .boot-bar { opacity: 0; transition: opacity .3s; } #boot.starting .boot-bar { opacity: 1; }
-#power-btn { width: 84px; height: 84px; border-radius: 50%; border: 3px solid #2a8ee4; background: #11263d; color: #7cc4ff; font-size: 40px; box-shadow: 0 0 24px #2a8ee466; transition: transform .15s, box-shadow .2s; }
+.boot-steps { font-size: 14px; color: var(--teal); min-height: 18px; font-weight: 600; }
+.boot-bar { width: 240px; height: 6px; background: #ffffff1a; border-radius: 3px; overflow: hidden; opacity: 0; transition: opacity .3s; }
+.boot-bar div { height: 100%; width: 0; background: linear-gradient(90deg, #2a8ee4, #22a447); }
+#boot.starting .boot-bar { opacity: 1; }
+#boot.starting .boot-bar div { animation: boot 1.9s ease forwards; }
+
+#power-btn { width: 84px; height: 84px; border-radius: 50%; border: 3px solid #2a8ee4; background: #11263d; color: #7cc4ff; font-size: 40px; box-shadow: 0 0 24px #2a8ee466; transition: transform .15s, box-shadow .2s; animation: pulseBtn 2s ease-in-out infinite; }
 #power-btn:hover { transform: scale(1.06); box-shadow: 0 0 40px #2a8ee4aa; }
 #boot.starting #power-btn, #boot.starting .boot-hint { display: none; }
 .boot-hint { opacity: .6; font-size: 14px; }
+
 @keyframes boot { to { width: 100%; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes logoFloat { 50% { transform: translateY(-8px); } }
+@keyframes logoPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@keyframes checkPop { to { transform: scale(1); } }
+@keyframes glow { 50% { text-shadow: 0 0 22px #4fc3ff; } }
+@keyframes pulseBtn { 50% { box-shadow: 0 0 44px #2a8ee4aa; } }
+
+/* Desktop fährt beim Fertig-Laden sanft hoch, Icons gestaffelt */
+#desktop.reveal { animation: deskIn .55s ease both; }
+#taskbar.reveal { animation: barIn .5s .1s ease both; }
+#desktop.reveal .icon { animation: iconIn .45s both; animation-delay: calc(var(--i, 0) * 45ms + .15s); }
+@keyframes deskIn { from { opacity: 0; transform: scale(.985); } }
+@keyframes barIn { from { transform: translateY(64px); } }
+@keyframes iconIn { from { opacity: 0; transform: translateY(14px) scale(.9); } }
+@media (prefers-reduced-motion: reduce) {
+  #boot.starting .boot-logo, #boot.starting .boot-ring, #power-btn { animation: none; }
+  #desktop.reveal, #desktop.reveal .icon, #taskbar.reveal { animation: none; }
+}
 
 /* ---------- Desktop ---------- */
 #desktop { position: fixed; inset: 0 0 64px 0; background: repeating-linear-gradient(-55deg, var(--desk) 0 130px, var(--desk2) 130px 132px, var(--desk) 132px 260px); overflow: hidden; }

@@ -1208,8 +1208,9 @@ function restartDay() {
 
 // ---------------------------------------------------------------- Start
 function boot() {
-  for (const id of LEFT_ICONS) $('#icons-left').append(iconEl(id));
-  for (const id of RIGHT_ICONS) $('#icons-right').append(iconEl(id));
+  let iconN = 0;
+  for (const id of LEFT_ICONS) { const el = iconEl(id); el.style.setProperty('--i', iconN++); $('#icons-left').append(el); }
+  for (const id of RIGHT_ICONS) { const el = iconEl(id); el.style.setProperty('--i', iconN++); $('#icons-right').append(el); }
   $('#start-btn').innerHTML = ICONS.power;
   $('#start-btn svg').style.cssText = 'background:#1e88e5;border-radius:50%;padding:6px';
   // Startmenü = Liste ALLER Apps (wichtig auf dem Handy, wo die Fenster die Icons verdecken)
@@ -1237,12 +1238,27 @@ function boot() {
   setInterval(tick, 1000);
 
   // Einschalten per Klick (Browser erlauben Töne erst nach einer Nutzeraktion)
+  const STEPS = ['System wird geladen…', 'Verbinde mit Ollama…', 'Oberfläche wird geladen…'];
   const powerOn = () => {
-    if ($('#boot').classList.contains('starting')) return;
-    $('#boot').classList.add('starting');
+    const bootEl = $('#boot');
+    if (bootEl.classList.contains('starting')) return;
+    bootEl.classList.add('starting');
     sfx.boot();
+    const stepEl = $('#boot-steps');
+    let si = 0; if (stepEl) stepEl.textContent = STEPS[0];
+    const iv = setInterval(() => { si++; if (stepEl && si < STEPS.length) stepEl.textContent = STEPS[si]; }, 560);
+    // Phase „Bereit!" mit Logo-Pop und Haken
     setTimeout(() => {
-      $('#boot').classList.add('done');
+      clearInterval(iv);
+      bootEl.classList.add('ready');
+      if (stepEl) stepEl.textContent = 'Bereit!';
+      try { sfx.blip(); } catch {}
+    }, 1700);
+    // Desktop fährt hoch, Boot-Screen fade/zoom out
+    setTimeout(() => {
+      $('#desktop').classList.add('reveal');
+      $('#taskbar').classList.add('reveal');
+      bootEl.classList.add('done');
       if (innerWidth >= 800) WM.open('camera');
       WM.open('phone');
       toast('Willkommen bei Kotlana OS! Die Anrufer spielt dein Ollama-Modell.', 'settings', 6000);
@@ -1254,7 +1270,7 @@ function boot() {
           if (u && store.get('updSeen', '') !== u.tag) updateToast(u);
         } catch {}
       }, 4000);
-    }, 1800);
+    }, 2250);
   };
   $('#power-btn').onclick = powerOn;
   $('#boot').addEventListener('click', powerOn);
