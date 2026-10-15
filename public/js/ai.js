@@ -234,13 +234,19 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   }
   if (!r.reply) throw new Error('Das Modell hat keine Antwort geliefert');
 
-  // Vertrauen: das Modell entscheidet. Bei kleinen Modellen mischen wir die feste Regelbewertung
-  // stärker bei, weil ihre eigene Zahl oft unzuverlässig ist.
+  // Vertrauen: die feste Regelbewertung (scoreAgentLine) bestimmt das Vorzeichen, die Zahl des
+  // Modells schiebt nur die Höhe. So gibt Nettsein IMMER Pluspunkte, auch wenn das Modell eine
+  // unzuverlässige/negative Zahl liefert.
+  const NEG = ['mag das nicht', 'Druck', 'unhöflich', 'zu früh nach Code gefragt', 'wiederholt sich', 'zu kurz'];
+  const positiveLine = !quiet && score.delta > 0 && !score.why.some((x) => NEG.includes(x));
   let model_d = clamp(Math.round(Number(String(r.trust_change).replace('+', '')) || 0), -15, 12);
-  let d = quiet ? 0 : small ? Math.round(0.45 * model_d + 0.55 * score.delta) : model_d;
+  const wRule = small ? 0.65 : 0.5; // Gewicht der Regeln
+  let d = quiet ? 0 : Math.round(wRule * score.delta + (1 - wRule) * model_d);
   if (score.why.includes('unhöflich')) d = Math.min(d, -8);
   if (score.why.includes('zu früh nach Code gefragt')) d = Math.min(d, -3);
   if (score.why.includes('wiederholt sich')) d = Math.min(d, 0) - 2;
+  // Freundlichkeit darf nie Abzug geben
+  if (positiveLine) d = Math.max(d, Math.max(1, Math.ceil(score.delta / 2)));
   // Schwierigkeitsgrad: auf leicht fallen Minuspunkte sanfter aus
   const penalty = c.diff?.penalty ?? 1;
   if (d < 0 && penalty < 1) d = Math.round(d * penalty);
