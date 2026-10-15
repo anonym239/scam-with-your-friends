@@ -71,6 +71,7 @@ und es gibt auch keine vorgefertigten Ersatz-Antworten.
 - **Schlaue Anrufer:** Vor jeder Antwort überlegt das Modell kurz („thought“): Was will der Agent, passt das zu dem, was er vorher gesagt hat?
   Jede Figur hat Hintergrund, Vorlieben, Abneigungen, eine eigene Sprechweise und begrenzte Geduld. Sie stellt Gegenfragen
   und merkt Widersprüche. Mit „💭 Gedanken der Anrufer anzeigen“ siehst du, was das Modell über dich denkt.
+- **Merkt sich alles im Gespräch:** Das Modell bekommt bei jeder Antwort den kompletten Chatverlauf (Kontext 8192 Tokens) und führt zusätzlich ein **Notizbuch** mit wichtigen Fakten (dein Name, deine Mitarbeiternummer, Versprechen). So bleibt es bei sich selbst stimmig und merkt, wenn du dich widersprichst. Die Notizen stehen auch im Banditcam-Transkript.
 - **Gedächtnis:** Die Anrufer erinnern sich an frühere Gespräche. Wer abgezockt wurde, ruft beim nächsten Mal misstrauisch an.
 - **Lebendige Gespräche:** Manchmal klingelt es an der Tür, oder der Enkel schreibt „Ist das ein Betrug??“.
 - **Vertrauen:** Das Modell entscheidet selbst. Feste Regeln greifen nur bei eindeutigen Fällen (Beleidigung, zu frühe Frage nach dem Code, Wiederholung).

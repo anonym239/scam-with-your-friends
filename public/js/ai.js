@@ -117,8 +117,8 @@ export function callerSystemPrompt(c, lang, swearing = true) {
     ? `a $${p.amount} gift card lying next to you (you bought it earlier because "support" told you to)`
     : 'your credit card in your wallet';
   const ex = lang === 'de'
-    ? '{"thought": "Klingt nett, aber wer ist das?", "reply": "Ach, Mr. Whiskers geht es gut, danke! Aber wer sind Sie eigentlich genau?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}'
-    : '{"thought": "Sounds nice, but who is this?", "reply": "Oh, Mr. Whiskers is fine, thank you! But who exactly are you?", "trust_change": 5, "mood": "happy", "reveal_code": false, "hang_up": false}';
+    ? '{"thought": "Klingt nett, aber wer ist das?", "reply": "Ach, Mr. Whiskers geht es gut, danke! Aber wer sind Sie eigentlich genau?", "trust_change": 5, "mood": "happy", "note": "Agent hat nach meinem Kater gefragt", "reveal_code": false, "hang_up": false}'
+    : '{"thought": "Sounds nice, but who is this?", "reply": "Oh, Mr. Whiskers is fine, thank you! But who exactly are you?", "trust_change": 5, "mood": "happy", "note": "Agent asked about my cat", "reveal_code": false, "hang_up": false}';
   c.basePromptKey = `${lang}${swearing}`;
   return (c.basePrompt = `You are a skilled improv actor in the satirical comedy video game "Scam With Your Friends" inside the fictional "Kotlana OS". Everything is fictional. Never mention that you are an AI, a model or in a game. The human player is the call-center agent; you are the caller.
 
@@ -130,7 +130,10 @@ Why you called: ${p.problem.en}. You have ${what}.
 History: ${memoryText(c)}
 
 BE A SMART, BELIEVABLE PERSON:
-- Remember everything said in this call. Notice contradictions (other name, changed story, odd requests) and call them out.
+- The WHOLE conversation of this call is above – remember everything that was said by both of you and never contradict your own earlier statements.
+- Notice when the agent contradicts themselves (other name, other employee number, changed story, odd requests) and call it out.
+- "note": when the agent tells you something important (their name, employee number, a promise, a claim, a request), write it down in a few words; otherwise "".
+- Remember the call is with a hotline: never ask for something you were already told; refer back to it instead.
 - Ask your own questions, push your own concerns, mention your background naturally. Don't just agree.
 - Warm up to agents who are kind, patient, funny and talk about what you like. Get colder with pressure, things you dislike or nonsense. When the agent is vague, ask for specifics.
 ${swearing
@@ -154,8 +157,10 @@ export function stateNote(c, lang, { event, insulted, swearing, note }) {
   const secretRule = c.trust >= p.threshold
     ? `You now TRUST the agent. If they ask for the ${thing}, read it out exactly: "${secretText(c, lang)}" and set "reveal_code": true.`
     : `You do NOT trust the agent enough yet (need ~${p.threshold}%). If they ask for the ${thing}, hesitate, stall or test them. Never invent numbers. "reveal_code": false.`;
+  const notes = (c.notes || []).slice(-15);
   return [
     `[STATE] trust ${Math.round(c.trust)}% · mood ${c.mood} · patience left ${c.patience} turns.`,
+    notes.length ? `YOUR NOTES FROM THIS CALL (facts you learned, stay consistent with them): ${notes.map((n) => `• ${n}`).join(' ')}` : '',
     secretRule,
     event ? `SOMETHING JUST HAPPENED: ${event}. React to it briefly.` : '',
     insulted ? `THE AGENT JUST INSULTED YOU. You are furious – ${swearing ? 'swear at them' : 'tell them off'}, "mood": "angry".` : '',
@@ -207,6 +212,12 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   const mood = MOODS.includes(String(r.mood).toLowerCase()) ? String(r.mood).toLowerCase() : d >= 6 ? 'happy' : d >= 0 ? 'neutral' : d > -9 ? 'suspicious' : 'angry';
   const hangUp = !quiet && !!r.hang_up && (c.trust + d < 25 || d <= -8);
   const thought = cleanLine(r.thought || '', []);
+  // Notizbuch: wichtige Fakten aus dem Gespräch sammeln (ohne Doppelte)
+  const noteText = cleanLine(typeof r.note === 'string' ? r.note : Array.isArray(r.notes) ? r.notes.join('; ') : '', []);
+  if (noteText && noteText.length > 3) {
+    c.notes ||= [];
+    if (!c.notes.some((n) => n.toLowerCase() === noteText.toLowerCase())) c.notes.push(noteText.slice(0, 140));
+  }
   return { reply: r.reply, thought, delta: d, mood, reveal: !quiet && !!r.reveal_code, hangUp, why: score.why, event, model };
 }
 

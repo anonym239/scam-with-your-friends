@@ -288,7 +288,8 @@ function endCall(reason) {
   if (S.recording) {
     G.recordings.unshift({
       name: c.p.name, when: c.started, result: c.claimed ? `+${money(c.p.amount)}` : 'kein Geld',
-      transcript: c.history.map((m) => `${m.role === 'caller' ? c.p.name : m.role === 'agent' ? S.playerName : '*'}: ${m.text}`).join('\n'),
+      transcript: c.history.map((m) => `${m.role === 'caller' ? c.p.name : m.role === 'agent' ? S.playerName : '*'}: ${m.text}`).join('\n')
+        + (c.notes?.length ? `\n\nNotizen des Anrufers:\n${c.notes.map((n) => '- ' + n).join('\n')}` : ''),
     });
     APPS.banditcam.refresh?.();
   }

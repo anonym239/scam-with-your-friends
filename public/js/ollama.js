@@ -44,7 +44,7 @@ export async function chatJSON(base, model, messages, { temperature = 0.8, timeo
     const ctrl = new AbortController();
     let timer = setTimeout(() => ctrl.abort(), timeout);
     try {
-      const body = { model, messages, stream: true, format: 'json', keep_alive: KEEP_ALIVE, options: { temperature, num_predict: maxTokens, num_ctx: 4096 } };
+      const body = { model, messages, stream: true, format: 'json', keep_alive: KEEP_ALIVE, options: { temperature, num_predict: maxTokens, num_ctx: 8192 } };
       if (withThink) body.think = false;
       const r = await fetch(clean(base) + '/api/chat', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: ctrl.signal, body: JSON.stringify(body),
