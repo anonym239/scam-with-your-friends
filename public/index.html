@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kotlana OS</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Bootscreen -->
+  <div id="boot">
+    <div class="boot-logo"><span>K</span></div>
+    <div class="boot-title">Kotlana OS</div>
+    <div class="boot-sub">Call Center Edition · powered by Ollama</div>
+    <div class="boot-bar"><div></div></div>
+  </div>
+
+  <div id="desktop">
+    <div id="icons-left" class="icons"></div>
+    <div id="icons-right" class="icons right"></div>
+    <div id="windows"></div>
+    <div id="flash"></div>
+    <div id="money-pop"></div>
+    <div id="toasts"></div>
+  </div>
+
+  <div id="taskbar">
+    <button id="start-btn" class="tb-btn" title="Start"></button>
+    <div id="tb-apps"></div>
+    <div class="tb-spacer"></div>
+    <div id="tb-agent" class="tb-agent" title="KI-Spieler an/aus"></div>
+    <div class="tb-stats">
+      <div class="personal">PERSONAL <span id="st-personal">$0</span></div>
+      <div><span class="team">TEAM <span id="st-team">$0</span></span> / <span class="quota">QUOTA <span id="st-quota">$600</span></span></div>
+      <div class="review">PERFORMANCE REVIEW <span id="st-review">10:00</span></div>
+    </div>
+    <div class="tb-clock"><div id="clock-time">3:08 PM</div><div id="clock-date">Mon, Aug 31, 2026</div></div>
+  </div>
+
+  <div id="start-menu" hidden>
+    <div class="sm-head">Kotlana OS</div>
+    <button data-open="settings">⚙️ Einstellungen</button>
+    <button data-open="demo">🎬 Demo &amp; Screenshots</button>
+    <button data-action="autoplay">🤖 KI-Spieler umschalten</button>
+    <button data-action="restart">🔄 Neuer Arbeitstag</button>
+  </div>
+
+  <div id="overlay" hidden><div class="overlay-card" id="overlay-card"></div></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

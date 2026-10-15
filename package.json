@@ -1,0 +1,13 @@
+{
+  "name": "kotlana-os",
+  "version": "1.0.0",
+  "description": "Kotlana OS – Scam With Your Friends als Browser-App, gespielt von deinen lokalen Ollama-Modellen",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
