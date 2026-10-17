@@ -1,4 +1,4 @@
-// Der Anrufer wird von deinem Ollama-Modell gespielt.
+// Der Anrufer wird von der KI gespielt (Google Gemini oder Ollama, siehe llm.js).
 //
 // Damit er "schlau" wirkt:
 //  - Er überlegt erst (privates "thought"), bevor er antwortet: Was will der Agent? Passt das zusammen?
@@ -7,7 +7,7 @@
 //  - Im Gespräch passiert manchmal etwas (Türklingel, der Enkel schreibt ...), worauf er reagiert.
 //  - Das Modell entscheidet selbst, wie sich das Vertrauen ändert. Feste Spielregeln greifen nur bei
 //    eindeutigen Fällen (Beleidigung, zu frühe Frage nach dem Code, Wiederholung).
-import { chatJSON } from './ollama.js';
+import { chatJSON } from './llm.js';
 import { scoreAgentLine, secretText } from './callers.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -19,6 +19,7 @@ export const modelFor = (c, S) => (S.personaModels && S.personaModels[c.p.id]) |
 // und bekommen das Vertrauen stärker über die festen Spielregeln statt über ihre eigene Zahl.
 export function isSmallModel(name) {
   const m = String(name || '').toLowerCase();
+  if (/^(gemini|models\/gemini)/.test(m)) return false;          // Gemini (auch "lite") ist schlau genug
   if (/\b(0\.\d|1\.\d|[0-4])b\b/.test(m)) return true;        // 0.5b, 1b, 1.5b, 3b, 4b ...
   if (/mini|tiny|small|gemma3:1|gemma3:4|phi3|phi-3|qwen2\.5:0|qwen2\.5:1|qwen2\.5:3|llama3\.2/.test(m)) return true;
   return false;
@@ -131,7 +132,7 @@ export function callerSystemPrompt(c, lang, swearing = true, small = false) {
 You are ${p.name}, age ${p.age}. ${p.persona}. ${p.facts}
 You like ${p.likes.text}. You dislike ${p.dislikes.text}.
 You called tech support because: ${p.problem.en}. You have ${p.pay === 'giftcard' ? `a $${p.amount} gift card` : 'your credit card'} nearby.
-Rules:
+${c.agenda ? `Today: ${c.agenda.want.text}. Habit: ${c.agenda.quirk}.\n` : ''}Rules:
 - Reply in ${lang === 'de' ? 'German' : 'English'}, 1-2 short spoken sentences. No narration, no emojis.
 - Be nice back to kind, patient agents; get annoyed by rude or pushy ones.${swearing ? ' If the agent is rude or it is clearly a scam, get angry and swear (e.g. "Du Bastard!").' : ''}
 - Only give out numbers when the STATE line says you trust the agent.
@@ -153,7 +154,7 @@ Background: ${p.facts}.
 How you talk: ${p.voice}
 You LIKE: ${p.likes.text}. You DISLIKE: ${p.dislikes.text}.
 Why you called: ${p.problem.en}. You have ${what}.
-History: ${memoryText(c)}
+${c.agenda ? `YOUR OWN AGENDA TODAY: ${c.agenda.want.text}. Bring it up yourself early and come back to it; warm up a lot if the agent goes along with it.\nYOUR HABIT TODAY: ${c.agenda.quirk} (use it now and then, not every line).\n` : ''}History: ${memoryText(c)}
 
 BE A SMART, BELIEVABLE PERSON:
 - The WHOLE conversation of this call is above – remember everything that was said by both of you and never contradict your own earlier statements.
@@ -205,7 +206,7 @@ export function stateNote(c, lang, { event, insulted, swearing, note }) {
 // onPartial(text): wird während des Schreibens mit dem bisherigen Antworttext aufgerufen.
 export async function callerTurn(c, S, { opening = false, note = null, onPartial = null } = {}) {
   const model = modelFor(c, S);
-  if (!model) throw new Error('Kein Ollama-Modell gewählt');
+  if (!model) throw new Error('Kein KI-Modell gewählt');
   const quiet = opening || !!note;
   const score = quiet ? { delta: 0, why: [], asks: false } : scoreAgentLine(c, c.lastAgentLine);
   const event = quiet ? null : maybeEvent(c);
@@ -226,7 +227,7 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
 
   let r = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    r = await chatJSON(S.base, model, messages, { temperature: Number(S.temperature) + attempt * 0.2, onPartial });
+    r = await chatJSON(S, model, messages, { temperature: Number(S.temperature) + attempt * 0.2, onPartial });
     r.reply = cleanLine(pickReply(r), [c.p.name, c.p.name.split(' ')[0]]);
     if (r.reply) break;
     console.warn('[Kotlana] Modell lieferte keine verwertbare Antwort:', r);

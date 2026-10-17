@@ -4,7 +4,7 @@
 //   1. Mehrere Varianten vom Browser holen und die passendste wählen (Fachwörter zählen mit).
 //   2. Fachwörterbuch: typische Verhörer im Call-Center korrigieren, plus Namen des Anrufers.
 //   3. Optional: dein Ollama-Modell korrigiert den Satz mit Blick auf das laufende Gespräch.
-import { chatJSON } from './ollama.js';
+import { chatJSON } from './llm.js';
 
 // Begriffe, die im Spiel oft fallen – Treffer machen eine Variante wahrscheinlicher.
 const DOMAIN = /\b(tech|support|kotlana|gift ?card|gutschein|karte|code|virus|computer|drucker|printer|konto|account|techniker|technician|microsoft|windows|antivirus|firewall|hotline|mitarbeiternummer|employee|prüfziffer|cvv)\b/gi;
@@ -84,7 +84,7 @@ ${candidates.map((c, i) => `${i + 1}) ${c}`).join('\n')}
 Return the sentence the agent most likely said. Fix misheard words using the context (e.g. "Text Support" -> "Tech Support", names of the caller). Keep the language, wording and meaning; do not add, answer or rephrase anything.
 Answer ONLY with JSON: {"text": "<corrected sentence>"}`;
   try {
-    const r = await chatJSON(S.base, model, [{ role: 'user', content: prompt }], { temperature: 0, timeout: 15000, firstTimeout: 20000, retries: 0 });
+    const r = await chatJSON(S, model, [{ role: 'user', content: prompt }], { temperature: 0, timeout: 15000, firstTimeout: 20000, retries: 0 });
     const t = String(r.text || '').trim();
     // Sicherheitsnetz: keine komplett neuen Sätze akzeptieren
     if (!t || t.length > candidates[0].length * 1.6 + 20) return candidates[0];

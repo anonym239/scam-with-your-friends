@@ -7,7 +7,10 @@
   - Lokal bauen: `npm ci && npm run build:exe -- --win` (Ausgabe `dist/KotlanaOS.exe`, nicht committen).
 - Neue Dateien in `public/` landen automatisch in der .exe (`scripts/build-exe.js` bettet `public/` komplett ein).
 - Nur Node-Built-in-Module in `server.js` verwenden, sonst funktioniert die Single-Executable nicht.
-- **Spielprinzip (vom Nutzer festgelegt):** Der Mensch ist der Agent, Ollama spielt immer den Anrufer. Es gibt keinen KI-Spieler, keine Demo-Engine und keine automatische Modellwahl. Der Nutzer wählt das Modell selbst, und ohne Ollama gibt es keine Anrufe.
+- **Spielprinzip (vom Nutzer festgelegt):** Der Mensch ist der Agent, die KI spielt immer den Anrufer. Es gibt keinen KI-Spieler und keine Demo-Engine. Standard-KI ist **Google Gemini** (`public/js/gemini.js`, direkt aus dem Browser per `streamGenerateContent?alt=sse`, `responseMimeType: application/json`); Ollama bleibt als umschaltbarer Anbieter (`S.provider`). Weiche: `public/js/llm.js` – `ai.js`/`speech.js` rufen nur `llm.js` auf. Gemini-Standardmodell: `gemini-1.5-flash`, sonst das neueste Flash aus der Modell-Liste (`GEMINI_PREFERRED`). Ohne erreichbare KI gibt es keine Anrufe.
+- Gemini-API-Schlüssel: gibt der Nutzer selbst ein (`S.geminiKey`, nur localStorage). Nie einen Schlüssel ins Repo schreiben oder hart codieren.
+- Mehr Charakter: 12 Personas in `callers.js`, dazu pro Anruf `c.agenda` (`makeAgenda()`: zufälliges Anliegen aus `WANTS` + Eigenart aus `QUIRKS`), steht im System-Prompt und gibt in `scoreAgentLine` Bonus („Anliegen erkannt“). `isSmallModel()` gilt nie für Gemini (Name enthält „mini“!).
+- Handy: Mobil-Layout gilt für `max-width:800px` UND Querformat `max-height:500px` (Telefon dann zweispaltig). Keine `transform`-Animation mit `fill: both` auf `#desktop` (sonst hängen Vollbild-Fenster falsch).
 - KI-Logik: `public/js/ai.js` (Anrufer-Prompt mit "thought", Gedächtnis, Ereignisse), Personas und Regelbewertung in `public/js/callers.js`, Spracheingabe in `public/js/speech.js`.
 - Die Kamera zeigt keine Untertitel (die waren nur im Trailer).
 - Sounds in `public/js/sounds.js` (Web Audio, keine Dateien). Das OS startet per Power-Knopf, weil Browser Töne erst nach einem Klick erlauben.

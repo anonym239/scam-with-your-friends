@@ -58,8 +58,8 @@ button { font-family: inherit; cursor: pointer; }
 @keyframes pulseBtn { 50% { box-shadow: 0 0 44px #2a8ee4aa; } }
 
 /* Desktop fährt beim Fertig-Laden sanft hoch, Icons gestaffelt */
-#desktop.reveal { animation: deskIn .55s ease both; }
-#taskbar.reveal { animation: barIn .5s .1s ease both; }
+#desktop.reveal { animation: deskIn .55s ease backwards; } /* backwards: danach kein Transform mehr aktiv (sonst hängen Vollbild-Fenster am Desktop statt am Bildschirm) */
+#taskbar.reveal { animation: barIn .5s .1s ease backwards; }
 #desktop.reveal .icon { animation: iconIn .45s both; animation-delay: calc(var(--i, 0) * 45ms + .15s); }
 @keyframes deskIn { from { opacity: 0; transform: scale(.985); } }
 @keyframes barIn { from { transform: translateY(64px); } }
@@ -273,7 +273,7 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
 @media (max-width: 1500px) { .icons { grid-template-columns: repeat(2, 104px); } }
 
 /* ---------- Handy-Modus: Fenster im Vollbild, kompakte Leiste ---------- */
-@media (max-width: 800px) {
+@media (max-width: 800px), (max-height: 500px) and (orientation: landscape) {
   /* Startbildschirm: Icons als App-Raster */
   .icons { position: static; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 2px; padding: 14px 8px; width: 100%; }
   .icons.right { display: grid; }
@@ -316,8 +316,57 @@ textarea.f { height: auto; min-height: 240px; padding: 12px; font-family: ui-mon
   .tb-agent { display: none; }
 
   .toast { min-width: 0; }
-  #toasts { top: 8px; bottom: auto; left: 8px; right: 8px; }
+  #toasts { top: 8px; bottom: auto; left: 8px; right: 8px; pointer-events: none; }
+  #toasts .toast { pointer-events: auto; padding: 8px 12px; font-size: 14px; }
+  #toasts .toast:nth-last-child(n+3) { display: none; } /* auf dem Handy höchstens 2 Meldungen */
   .toast .t-ic { width: 32px; height: 32px; }
   #money-pop { font-size: 64px; padding: 14px 30px; border-width: 8px; }
   #start-menu { left: 0; right: 0; width: auto; bottom: 56px; max-height: 70vh; }
+}
+
+/* KI-Einstellungen: je nach Anbieter nur die passenden Felder zeigen */
+.app[data-prov="gemini"] .oll-only, .app[data-prov="ollama"] .gem-only { display: none !important; }
+.agenda { background: #ffffff12; border: 1px solid #ffffff2a; border-radius: 6px; padding: 6px 10px; color: #ffe08a; font-size: 14px; }
+
+/* ---------- Handy im Querformat: niedrige Leiste, Telefon zweispaltig ---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+  #taskbar { height: 44px; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+  #desktop { bottom: 44px; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+  .window { bottom: 44px; left: env(safe-area-inset-left) !important; right: env(safe-area-inset-right); }
+  #start-menu { bottom: 44px; max-height: calc(100vh - 54px); overflow-y: auto; }
+  .tb-btn .ic { width: 28px !important; height: 28px !important; }
+  #start-btn svg { width: 28px; height: 28px; }
+  .tb-stats { font-size: 10px; }
+  .icons { grid-template-columns: repeat(8, 1fr); padding: 8px; }
+  .icon .ic { width: 44px; height: 44px; }
+  .icon .ic svg { width: 28px; height: 28px; }
+  .win-title { height: 34px; font-size: 14px; }
+  .win-title button { width: 40px; height: 32px; }
+  .app { padding: 8px 12px; }
+
+  .phone { display: grid; grid-template-columns: minmax(200px, 36%) 1fr; grid-template-rows: auto 1fr auto; gap: 6px 8px; padding: 6px; }
+  .phone > .trust { grid-column: 1; grid-row: 1; padding: 6px 8px 4px; }
+  .phone > .portrait { grid-column: 1; grid-row: 2; min-height: 0; display: flex; flex-direction: column; }
+  .phone > .phone-buttons { grid-column: 1; grid-row: 3; }
+  .phone > .chat, .phone > .idle { grid-column: 2; grid-row: 1 / span 3; min-height: 0; }
+  .phone > .idle { overflow-y: auto; justify-content: flex-start; padding-top: 6px; gap: 8px; font-size: 14px; }
+  .trust-head, .trust-pct { font-size: 14px; }
+  .trust-row { margin-top: 4px; }
+  .portrait-name { font-size: 13px; padding: 4px; }
+  .portrait-img { flex: 1; height: auto; min-height: 0; }
+  .portrait-img svg { height: 100%; max-height: 130px; }
+  .portrait-dots { height: 12px; }
+  .btn-hang { height: 40px; font-size: 15px; }
+  .btn-ico { width: 44px; height: 40px; }
+  .chat-log { padding: 8px; gap: 6px; }
+  .msg { font-size: 14px; }
+  .chat-input { padding: 6px; }
+  .chat-input input { height: 38px; }
+  .big-btn { padding: 8px 16px; font-size: 15px; }
+  .boot-stage { transform: scale(.7); margin: -30px 0; }
+  #toasts { left: auto; width: min(420px, 60vw); }
+  #start-menu .sm-apps { grid-template-columns: repeat(6, 1fr); padding: 4px; }
+  #start-menu .sm-app { padding: 6px 2px; }
+  .sm-head { padding: 6px 12px !important; }
+  #toasts .toast:nth-last-child(n+2) { display: none; }
 }

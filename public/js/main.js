@@ -1,7 +1,8 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
-import { listModels, version, warmUp, setOllamaTarget } from './ollama.js';
-import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, effective, DIFFS } from './callers.js';
+import { version, setOllamaTarget } from './ollama.js';
+import { listModels, warmUp, isGemini, providerName, providerIcon, defaultModel } from './llm.js';
+import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, effective, DIFFS, makeAgenda } from './callers.js';
 import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor, canReveal } from './ai.js';
 import { startRecognition, MIC_LANGS } from './speech.js';
@@ -26,7 +27,7 @@ const DEFAULT_SCRIPT = `KOTLANA CALL SCRIPT v2.3
 NIEMALS: drohen, hetzen, beleidigen (Vertrauen sinkt!)`;
 
 const DEFAULTS = {
-  base: '/ollama', ollamaHost: '', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
+  provider: 'gemini', geminiKey: '', models: {}, base: '/ollama', ollamaHost: '', callerModel: '', personaModels: {}, temperature: 0.8, lang: 'de',
   tts: false, coworkers: true, recording: true, showThoughts: false, micAI: false, micAutoSend: true, micLang: 'auto', micPause: 2, sounds: true, volume: 0.7, swearing: true, difficulty: 'easy', playerName: 'Agent', script: DEFAULT_SCRIPT,
 };
 const store = {
@@ -39,11 +40,17 @@ if (S.callerModel === 'demo') S.callerModel = '';
 delete S.agentModel; delete S.autoplay;
 // v1.2: Ollama-Korrektur der Spracheingabe standardmäßig aus (kostet eine zusätzliche Anfrage = Wartezeit)
 if (!S.v12) { S.micAI = false; S.v12 = true; store.set('settings', S); }
+// v1.3: Standard-KI ist jetzt Google Gemini. Bisherige Ollama-Auswahl bleibt gemerkt (umschaltbar).
+if (!S.v13) {
+  S.models = { ...(S.models || {}), ollama: { caller: S.callerModel || '', persona: S.personaModels || {} } };
+  S.provider = 'gemini'; S.callerModel = ''; S.personaModels = {}; S.v13 = true; store.set('settings', S);
+}
 const saveSettings = () => { store.set('settings', S); configureSounds(S); setOllamaTarget(S.ollamaHost); refreshModelChip(); };
 configureSounds(S);
 setOllamaTarget(S.ollamaHost);
 let MODELS = [];
-let ollamaOK = null;
+let aiOK = null;
+let aiErr = '';
 
 // ---------------------------------------------------------------- Game state
 const G = {
@@ -167,15 +174,15 @@ function renderTaskbar() {
   }
 }
 
-// Taskleiste: welches Ollama-Modell spielt gerade den Anrufer?
+// Taskleiste: welches KI-Modell spielt gerade den Anrufer?
 function refreshModelChip() {
   const c = $('#tb-agent');
   const m = G.call && G.call.status !== 'ringing' ? modelFor(G.call, S) : S.callerModel;
   const ok = readyToPlay();
   c.classList.toggle('on', ok);
   c.classList.toggle('warn', !ok);
-  c.textContent = ollamaOK === false ? '⚠ Ollama nicht erreichbar' : !S.callerModel ? '⚠ Kein Modell gewählt' : `🦙 Anrufer: ${m}`;
-  c.title = 'Ollama-Modell wählen';
+  c.textContent = aiOK === false ? (isGemini(S) && !S.geminiKey ? '⚠ Gemini-Schlüssel fehlt' : `⚠ ${providerName(S)} nicht erreichbar`) : !S.callerModel ? '⚠ Kein Modell gewählt' : `${providerIcon(S)} Anrufer: ${m}`;
+  c.title = 'KI-Modell wählen';
 }
 
 function toast(text, icon = 'banditcam', ms = 5000) {
@@ -232,9 +239,9 @@ function startRing() {
 function stopRing() { clearInterval(ringTimer); }
 
 // ---------------------------------------------------------------- Calls
-// Gespielt wird erst, wenn Ollama läuft und du ein Modell gewählt hast.
+// Gespielt wird erst, wenn die KI erreichbar ist und ein Modell gewählt ist.
 function readyToPlay() {
-  return ollamaOK === true && !!S.callerModel && MODELS.includes(S.callerModel);
+  return aiOK === true && !!S.callerModel && MODELS.includes(S.callerModel);
 }
 
 function scheduleNextCall(ms = 4000 + Math.random() * 4000) {
@@ -257,11 +264,12 @@ function ringCall() {
     p, secret: makeSecret(p), history: [], status: 'ringing',
     mood: memory.get(p.id)?.scammed ? 'suspicious' : 'neutral', busy: false, claimed: false, revealed: false, started: new Date(),
     diff: eff, threshold: eff.threshold, gain: eff.gain, patience: eff.patience,
+    agenda: makeAgenda(),
     trust: clamp(p.start + eff.startBonus + (G.upgrades.badge ? 10 : 0) + memory.trustBonus(p.id), 5, 95),
   };
   G.nextCallAt = null;
   WM.open('phone'); // holt das Telefon nach vorn, auch wenn es minimiert oder verdeckt ist
-  warmUp(S.base, modelFor(G.call, S)); // Modell schon beim Klingeln laden
+  warmUp(S, modelFor(G.call, S)); // Modell schon beim Klingeln laden
   renderPhone();
   startRing();
 }
@@ -327,7 +335,7 @@ async function sendAgent(text) {
   return true;
 }
 
-// Der Anrufer (dein Ollama-Modell) antwortet
+// Der Anrufer (die KI) antwortet
 // farewell: Antwort ist der Abschied, danach endet der Anruf (reason).
 async function callerRespond(c, { opening = false, note = null, farewell = null } = {}) {
   c.busy = true;
@@ -353,8 +361,8 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
       return;
     }
     c._autoRetried = false;
-    // Kein Ersatz-Text: Ollama ist der Anrufer. Fehler zeigen und erneut versuchen lassen.
-    const m = addMsg(c, 'sys', `Ollama antwortet gerade nicht: ${e.message}`, { retry: true });
+    // Kein Ersatz-Text: die KI ist der Anrufer. Fehler zeigen und erneut versuchen lassen.
+    const m = addMsg(c, 'sys', `${providerName(S)} antwortet gerade nicht: ${e.message}`, { retry: true });
     c.retry = () => { m.retry = false; $('.msg.sys .retry')?.closest('.msg')?.remove(); callerRespond(c, { opening, note, farewell }); };
     renderPhone();
     return;
@@ -518,23 +526,30 @@ function renderPhone() {
       root.dataset.avatar = '';
       const mem = memory.get(c.p.id);
       idle.innerHTML = `<div style="font-size:18px">📞 Eingehender Anruf<br><b style="color:#fff">${esc(c.p.name)}</b></div>
-        <div class="muted">🦙 gespielt von ${esc(modelFor(c, S))}${mem ? ` · hat schon ${mem.calls}× angerufen${mem.scammed ? ' (wurde abgezockt!)' : ''}` : ''}</div>
+        ${c.agenda ? `<div class="agenda">💡 Anliegen heute: <b>${esc(c.agenda.want.de)}</b></div>` : ''}
+        <div class="muted">${providerIcon(S)} gespielt von ${esc(modelFor(c, S))}${mem ? ` · hat schon ${mem.calls}× angerufen${mem.scammed ? ' (wurde abgezockt!)' : ''}` : ''}</div>
         <div class="ring-actions"><button class="big-btn" id="acc">Annehmen</button><button class="big-btn red" id="dec">Ablehnen</button></div>`;
       $('#acc', idle).onclick = acceptCall;
       $('#dec', idle).onclick = declineCall;
     } else if (!readyToPlay()) {
-      const mode = ollamaOK === false ? 'noollama' : ollamaOK === null ? 'checking' : 'nomodel';
+      const nokey = isGemini(S) && !S.geminiKey;
+      const mode = nokey ? 'nokey' : aiOK === false ? 'noai' : aiOK === null ? 'checking' : 'nomodel';
       if (idle.dataset.mode !== mode) {
         idle.dataset.mode = mode;
-        idle.innerHTML = mode === 'checking' ? '<div>Verbinde mit Ollama…</div>'
-          : mode === 'noollama'
-            ? `<div style="font-size:18px">🦙 <b style="color:#fff">Ollama läuft nicht</b></div>
-               <div>Die Anrufer werden von deinem Ollama-Modell gespielt.<br>Starte Ollama und lade ein Modell, z. B.<br><code>ollama pull llama3.1</code></div>
+        idle.innerHTML = mode === 'checking' ? `<div>Verbinde mit ${providerName(S)}…</div>`
+          : mode === 'nokey'
+            ? `<div style="font-size:18px">✨ <b style="color:#fff">Gemini-API-Schlüssel eintragen</b></div>
+               <div>Die Anrufer werden von Google Gemini gespielt.<br>Hol dir einen kostenlosen Schlüssel bei <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:#7cc4ff">aistudio.google.com/apikey</a><br>und trag ihn in den Einstellungen ein.</div>
+               <button class="big-btn" id="set">Schlüssel eintragen</button>`
+          : mode === 'noai'
+            ? `<div style="font-size:18px">${providerIcon(S)} <b style="color:#fff">${providerName(S)} nicht erreichbar</b></div>
+               <div>${esc(aiErr || '')}</div>
+               <div>${isGemini(S) ? 'Prüfe Internetverbindung und API-Schlüssel.' : 'Starte Ollama und lade ein Modell, z. B.<br><code>ollama pull llama3.1</code>'}</div>
                <div class="ring-actions"><button class="big-btn blue" id="chk">Erneut prüfen</button><button class="big-btn" id="set">Einstellungen</button></div>`
-            : `<div style="font-size:18px">🦙 <b style="color:#fff">Wähle dein Modell</b></div>
-               <div>Such dir aus, welches Ollama-Modell die Anrufer spielt.</div>
+            : `<div style="font-size:18px">${providerIcon(S)} <b style="color:#fff">Wähle dein Modell</b></div>
+               <div>Such dir aus, welches ${providerName(S)}-Modell die Anrufer spielt.</div>
                <button class="big-btn" id="set">Modell wählen</button>`;
-        $('#chk', idle)?.addEventListener('click', () => checkOllama());
+        $('#chk', idle)?.addEventListener('click', () => checkAI());
         $('#set', idle)?.addEventListener('click', () => WM.open('settings'));
       }
     } else {
@@ -542,7 +557,7 @@ function renderPhone() {
       if (idle.dataset.mode !== 'wait') {
         idle.dataset.mode = 'wait';
         idle.innerHTML = `<div>Warte auf den nächsten Anruf…<br><span class="muted" id="wait-secs"></span></div>
-          <div class="muted">🦙 Anrufer gespielt von <b>${esc(S.callerModel)}</b></div>
+          <div class="muted">${providerIcon(S)} Anrufer gespielt von <b>${esc(S.callerModel)}</b></div>
           <button class="big-btn blue" id="now">Jetzt Anruf holen</button>`;
         $('#now', idle).onclick = () => { clearTimeout(G.nextCallTimer); ringCall(); };
       }
@@ -611,7 +626,7 @@ function showDelta(d) {
 }
 function setTalking(on) { $('#p-dots')?.classList.toggle('talk', on); }
 
-// Spracheingabe (Chrome/Edge) – mit Fachwörterbuch und optionaler Korrektur durch Ollama (speech.js)
+// Spracheingabe (Chrome/Edge) – mit Fachwörterbuch und optionaler Korrektur durch die KI (speech.js)
 let recog = null;
 function toggleMic() {
   const btn = $('#btn-mic'), inp = $('#chat-in');
@@ -999,18 +1014,19 @@ APPS.browser = {
     const p = $('#br-page', w.body);
     const link = (to, txt) => `<a data-go="${to}">${txt}</a>`;
     if (page === 'ollama') {
-      p.innerHTML = '<h2>Ollama Status</h2><p>Lade…</p>';
+      p.innerHTML = `<h2>${providerName(S)} Status</h2><p>Lade…</p>`;
       try {
-        const [v, models] = await Promise.all([version(S.base), listModels(S.base)]);
-        p.innerHTML = `<h2>🦙 Ollama ${esc(v)}</h2><p><span class="status-dot ok"></span>Verbunden über <code>${esc(S.base)}</code></p>
-          <h3>Installierte Modelle (${models.length})</h3><ul>${models.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+        const [v, models] = await Promise.all([isGemini(S) ? Promise.resolve('API') : version(S.base), listModels(S)]);
+        p.innerHTML = `<h2>${providerIcon(S)} ${providerName(S)} ${esc(v)}</h2><p><span class="status-dot ok"></span>${isGemini(S) ? 'Verbunden mit Google Gemini' : `Verbunden über <code>${esc(S.base)}</code>`}</p>
+          <h3>Verfügbare Modelle (${models.length})</h3><ul>${models.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
           <p>Anrufer-Modell: <b>${esc(S.callerModel || '– keins gewählt –')}</b></p>`;
       } catch (e) {
-        p.innerHTML = `<h2>🦙 Ollama</h2><p><span class="status-dot bad"></span>Nicht erreichbar: ${esc(e.message)}</p><p>Starte Ollama mit <code>ollama serve</code> und lade ein Modell, z.B. <code>ollama pull llama3.2</code>.</p>`;
+        p.innerHTML = `<h2>${providerIcon(S)} ${providerName(S)}</h2><p><span class="status-dot bad"></span>Nicht erreichbar: ${esc(e.message)}</p>${isGemini(S) ? '<p>Trag deinen API-Schlüssel in den Einstellungen ein (kostenlos bei <code>aistudio.google.com/apikey</code>).</p>' : '<p>Starte Ollama mit <code>ollama serve</code> und lade ein Modell, z.B. <code>ollama pull llama3.2</code>.</p>'}`;
       }
     } else if (page === 'help') {
       p.innerHTML = `<h2>📖 Kotlana Wiki – So funktioniert's</h2><ol>
-        <li>Nimm Anrufe im <b>Phone</b> an. Jeder Anrufer ist eine Figur, gespielt von deinem Ollama-Modell.</li>
+        <li>Nimm Anrufe im <b>Phone</b> an. Jeder Anrufer ist eine Figur, gespielt von der KI (Google Gemini).</li>
+        <li>Jeder Anruf hat ein eigenes <b>💡 Anliegen</b> (z. B. will den Manager, will plaudern, will Beweise). Geh darauf ein – das bringt viel Vertrauen!</li>
         <li>Steigere den <b>Caller Trust</b> durch Freundlichkeit und Geduld. Druck und Beleidigungen senken ihn.</li>
         <li>Ab genug Vertrauen nennt der Anrufer den Code bzw. die Kartendaten.</li>
         <li>Löse sie im <b>Gift Card Vault</b> oder im <b>Card Terminal</b> ein.</li>
@@ -1024,7 +1040,7 @@ APPS.browser = {
         <li>Rentner Gerhard M. besteht auf Mitarbeiternummer: „Ich bin ja nicht blöd.“</li></ul>`;
     } else {
       p.innerHTML = `<h1>Kotlana Start</h1><ul style="font-size:18px;line-height:2">
-        <li>${link('ollama', '🦙 Ollama-Status &amp; Modelle')}</li><li>${link('help', '📖 Wiki: So spielst du')}</li><li>${link('news', '📰 Kotlana News')}</li></ul>`;
+        <li>${link('ollama', `${providerIcon(S)} KI-Status &amp; Modelle`)}</li><li>${link('help', '📖 Wiki: So spielst du')}</li><li>${link('news', '📰 Kotlana News')}</li></ul>`;
     }
     $$('[data-go]', p).forEach((a) => (a.onclick = () => this.go(a.dataset.go)));
   },
@@ -1034,10 +1050,13 @@ APPS.browser = {
 APPS.settings = {
   title: 'Einstellungen', w: 660, h: 880,
   render() {
-    return h(`<div class="app"><h2 style="margin-top:0">⚙️ Kotlana OS · Ollama</h2>
+    return h(`<div class="app"><h2 style="margin-top:0">⚙️ Kotlana OS · KI</h2>
       <div class="kv">
-        <label>Ollama-URL</label><div class="row"><input class="f" style="height:40px;font-size:15px" id="set-base" /><button class="btn" id="set-test" style="flex:none">Testen</button></div>
-        <label>📡 Ollama-Adresse (App)</label><input class="f" style="height:40px;font-size:15px" id="set-ohost" placeholder="http://127.0.0.1:11434" />
+        <label>🧠 KI-Anbieter</label><select class="f" id="set-prov"><option value="gemini">✨ Google Gemini (empfohlen)</option><option value="ollama">🦙 Ollama (lokal)</option></select>
+        <label class="gem-only">🔑 Gemini-API-Schlüssel</label><div class="row gem-only"><input class="f" type="password" autocomplete="off" spellcheck="false" style="height:40px;font-size:15px" id="set-gkey" placeholder="AIza…" /><button class="btn" id="set-gtest" style="flex:none">Testen</button></div>
+        <label class="gem-only"></label><div class="muted gem-only" style="font-size:13px">Kostenlos bei <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Der Schlüssel bleibt nur auf diesem Gerät gespeichert. <a href="#" id="set-gdel">Schlüssel löschen</a></div>
+        <label class="oll-only">Ollama-URL</label><div class="row oll-only"><input class="f" style="height:40px;font-size:15px" id="set-base" /><button class="btn" id="set-test" style="flex:none">Testen</button></div>
+        <label class="oll-only">📡 Ollama-Adresse (App)</label><input class="f oll-only" style="height:40px;font-size:15px" id="set-ohost" placeholder="http://127.0.0.1:11434" />
         <label>Status</label><div id="set-status" class="muted">–</div>
         <label>Anrufer-Modell</label><select class="f" id="set-caller"></select>
         <label>🎚️ Schwierigkeit</label><select class="f" id="set-diff">${Object.entries(DIFFS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select>
@@ -1052,23 +1071,35 @@ APPS.settings = {
       <label class="toggle"><input type="checkbox" id="set-swear"> 🤬 Anrufer dürfen fluchen, wenn du frech wirst (wie im echten Spiel)</label>
       <label class="toggle"><input type="checkbox" id="set-tts"> 🔊 Sprachausgabe: Anrufer sprechen laut</label>
       <div class="kv" style="margin:8px 0"><label>🎤 Mikrofon-Sprache</label><select class="f" id="set-miclang">${Object.entries(MIC_LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
-      <label class="toggle"><input type="checkbox" id="set-micai"> 🎤 Spracherkennung mit Ollama korrigieren (noch genauer, aber jede Eingabe dauert länger)</label>
+      <label class="toggle"><input type="checkbox" id="set-micai"> 🎤 Spracherkennung mit der KI korrigieren (noch genauer, aber jede Eingabe dauert länger)</label>
       <div class="kv" style="margin:8px 0"><label>🎤 Sprechpause bis zum Senden</label><div class="row" style="align-items:center"><input type="range" min="1" max="5" step="0.5" id="set-micpause" /><span id="set-micpause-v" style="flex:none;width:44px"></span></div>
         <label>🔈 Lautstärke der Sounds</label><div class="row" style="align-items:center"><input type="range" min="0" max="1" step="0.05" id="set-vol" /><label class="toggle" style="flex:none;margin:0"><input type="checkbox" id="set-sounds"> an</label></div></div>
       <label class="toggle"><input type="checkbox" id="set-micsend"> 🎤 Nach dem Sprechen sofort senden (aus = erst prüfen, dann Enter)</label>
       <label class="toggle"><input type="checkbox" id="set-cow"> 👥 Kollegen verdienen fürs Team mit</label>
-      <p class="muted">Die Anrufer werden immer von deinem Ollama-Modell gespielt. <b>Schnell:</b> <code>llama3.2:3b</code>, <code>qwen2.5:3b</code>, <code>gemma3:4b</code> · <b>Schlauer, braucht eine gute Grafikkarte:</b> <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma3:12b</code>.
-      Denk-Modelle (z. B. deepseek-r1) sind sehr langsam. Ob Ollama deine Grafikkarte nutzt, zeigt <code>ollama ps</code> (Spalte PROCESSOR: „100% GPU“).<br>
-      „/ollama“ nutzt den eingebauten Proxy (empfohlen). Eine direkte URL wie <code>http://localhost:11434</code> braucht <code>OLLAMA_ORIGINS=*</code>.</p></div>`);
+      <p class="muted gem-only"><b>Gemini:</b> Die Anrufer werden von Google Gemini gespielt – schnell und schlau, auch auf dem Handy. Empfohlen: ein <code>flash</code>-Modell (Standard: <code>gemini-1.5-flash</code>, falls dein Schlüssel es noch anbietet, sonst das neueste Flash).</p>
+      <p class="muted oll-only"><b>Ollama:</b> <b>Schnell:</b> <code>llama3.2:3b</code>, <code>qwen2.5:3b</code>, <code>gemma3:4b</code> · <b>Schlauer:</b> <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma3:12b</code>.
+      „/ollama“ nutzt den eingebauten Proxy (empfohlen).</p></div>`);
   },
   async refresh() {
     const w = WM.wins.settings; if (!w) return;
     const b = w.body;
     const opts = (sel, first) => `<option value="">${first}</option>` + MODELS.map((m) => `<option ${m === sel ? 'selected' : ''}>${esc(m)}</option>`).join('')
       + (sel && !MODELS.includes(sel) ? `<option selected value="${esc(sel)}">${esc(sel)} (nicht gefunden)</option>` : '');
+    b.querySelector('.app').dataset.prov = isGemini(S) ? 'gemini' : 'ollama';
+    $('#set-prov', b).value = isGemini(S) ? 'gemini' : 'ollama';
+    $('#set-prov', b).onchange = (e) => switchProvider(e.target.value);
+    $('#set-gkey', b).value = S.geminiKey || '';
+    const saveKey = async (force) => {
+      const k = $('#set-gkey', b).value.trim();
+      if (!force && k === S.geminiKey) return;
+      S.geminiKey = k; saveSettings(); await checkAI();
+    };
+    $('#set-gkey', b).onchange = () => saveKey(false);
+    $('#set-gtest', b).onclick = () => saveKey(true);
+    $('#set-gdel', b).onclick = async (e) => { e.preventDefault(); S.geminiKey = ''; saveSettings(); await checkAI(); };
     $('#set-base', b).value = S.base;
     $('#set-ohost', b).value = S.ollamaHost;
-    $('#set-ohost', b).onchange = async (e) => { S.ollamaHost = e.target.value.trim(); saveSettings(); await checkOllama(); };
+    $('#set-ohost', b).onchange = async (e) => { S.ollamaHost = e.target.value.trim(); saveSettings(); await checkAI(); };
     $('#set-caller', b).innerHTML = opts(S.callerModel, MODELS.length ? '– Modell wählen –' : '– keine Modelle gefunden –');
     $('#set-persona', b).innerHTML = PERSONAS.map((p) => `<label>${esc(p.name)}</label><select class="f" data-persona="${p.id}">${opts(S.personaModels[p.id] || '', 'Standard (Anrufer-Modell)')}</select>`).join('');
     $('#set-temp', b).value = S.temperature;
@@ -1085,9 +1116,10 @@ APPS.settings = {
     $('#set-miclang', b).value = S.micLang; $('#set-micai', b).checked = S.micAI; $('#set-micsend', b).checked = S.micAutoSend;
     $('#set-swear', b).checked = S.swearing;
     $('#set-thoughts', b).checked = S.showThoughts; $('#set-tts', b).checked = S.tts; $('#set-cow', b).checked = S.coworkers;
-    $('#set-status', b).innerHTML = ollamaOK === null ? 'prüfe…' : ollamaOK
+    $('#set-status', b).innerHTML = aiOK === null ? 'prüfe…' : aiOK
       ? `<span class="status-dot ok"></span>Verbunden – ${MODELS.length} Modelle${S.callerModel ? '' : ' · <b>bitte ein Modell wählen</b>'}`
-      : '<span class="status-dot bad"></span>Ollama nicht erreichbar – starte Ollama und klicke auf „Testen“';
+      : isGemini(S) && !S.geminiKey ? '<span class="status-dot bad"></span>Bitte deinen Gemini-API-Schlüssel eintragen'
+      : `<span class="status-dot bad"></span>${providerName(S)} nicht erreichbar${aiErr ? ': ' + esc(aiErr) : ''}`;
     const bind = (id, key, conv = (x) => x, ev = 'change') => ($('#' + id, b)['on' + ev] = (e) => { S[key] = conv(e.target.type === 'checkbox' ? e.target.checked : e.target.value); saveSettings(); });
     bind('set-temp', 'temperature', Number, 'input'); bind('set-lang', 'lang'); bind('set-name', 'playerName', String, 'input');
     $('#set-diff', b).onchange = (e) => { S.difficulty = e.target.value; saveSettings(); if (G.call && G.call.status === 'ringing') ringCall(); toast(`Schwierigkeit: ${DIFFS[S.difficulty].label}`, 'settings', 2500); };
@@ -1095,8 +1127,8 @@ APPS.settings = {
     $('#set-temp', b).addEventListener('input', () => ($('#set-temp-v', b).textContent = S.temperature));
     $('#set-caller', b).onchange = (e) => {
       S.callerModel = e.target.value; saveSettings();
-      warmUp(S.base, S.callerModel);
-      if (S.callerModel) toast(`🦙 ${S.callerModel} spielt jetzt die Anrufer.`, 'settings', 3500);
+      warmUp(S, S.callerModel);
+      if (S.callerModel) toast(`${providerIcon(S)} ${S.callerModel} spielt jetzt die Anrufer.`, 'settings', 3500);
       this.refresh();
       if (!G.call) scheduleNextCall(2500); else renderPhone();
     };
@@ -1105,14 +1137,14 @@ APPS.settings = {
       saveSettings();
     }));
     $('#set-base', b).onchange = (e) => { S.base = e.target.value.trim() || '/ollama'; saveSettings(); };
-    $('#set-test', b).onclick = async () => { S.base = $('#set-base', b).value.trim() || '/ollama'; saveSettings(); await checkOllama(); };
+    $('#set-test', b).onclick = async () => { S.base = $('#set-base', b).value.trim() || '/ollama'; saveSettings(); await checkAI(); };
   },
   onOpen() { this.refresh(); },
 };
 
 const DEMO_SHOTS = [
   ['demo-1.webp', 'Eingehender Anruf: Shanice „Dee“ Bishop – Caller Trust startet bei 55 %, Banditcam nimmt automatisch auf.'],
-  ['demo-2.webp', '„Hello, I have a virus on my computer.“ – du sprichst mit dem Anrufer, gespielt von deinem Ollama-Modell.'],
+  ['demo-2.webp', '„Hello, I have a virus on my computer.“ – du sprichst mit dem Anrufer, gespielt von der KI (Google Gemini).'],
   ['demo-3.webp', 'Komplimente wirken: +8 Vertrauen → 70 %.'],
   ['demo-4.webp', 'Gift Card Vault: „Enter the information for $150.“'],
   ['demo-5.webp', 'Code eingelöst – Scam complete, $150 verdient, Personal jetzt $300!'],
@@ -1123,7 +1155,7 @@ APPS.demo = {
     let i = 0;
     const el = h(`<div class="demo"><img id="demo-img" alt="Demo-Screenshot" /><div class="cap" id="demo-cap"></div>
       <div class="ctrl"><button class="btn" id="d-prev">◀</button><span id="d-num"></span><button class="btn" id="d-next">▶</button>
-      <span style="flex:1"></span><button class="big-btn" id="d-go">🦙 Modell wählen &amp; loslegen</button></div></div>`);
+      <span style="flex:1"></span><button class="big-btn" id="d-go">✨ KI einrichten &amp; loslegen</button></div></div>`);
     const show = () => {
       $('#demo-img', el).src = 'assets/demo/' + DEMO_SHOTS[i][0];
       $('#demo-cap', el).textContent = DEMO_SHOTS[i][1];
@@ -1139,23 +1171,45 @@ APPS.demo = {
   onClose() { clearInterval(this.timer); },
 };
 
-// ---------------------------------------------------------------- Ollama check
-async function checkOllama() {
-  const was = ollamaOK;
+// ---------------------------------------------------------------- KI-Verbindung prüfen
+// Anbieter wechseln: die Modellauswahl wird pro Anbieter gemerkt.
+function switchProvider(prov) {
+  if ((prov === 'ollama') === !isGemini(S)) return;
+  S.models = S.models || {};
+  S.models[isGemini(S) ? 'gemini' : 'ollama'] = { caller: S.callerModel, persona: S.personaModels };
+  const next = S.models[prov] || {};
+  S.provider = prov; S.callerModel = next.caller || ''; S.personaModels = next.persona || {};
+  aiOK = null; MODELS = []; aiErr = '';
+  saveSettings();
+  APPS.settings.refresh?.();
+  checkAI();
+}
+
+async function checkAI() {
+  const was = aiOK;
+  const name = providerName(S);
   try {
-    MODELS = await listModels(S.base);
-    ollamaOK = true;
-    if (was === false) toast('🦙 Ollama ist jetzt erreichbar.', 'settings', 3500);
-    if (S.callerModel && !MODELS.includes(S.callerModel)) toast(`Modell „${S.callerModel}“ ist in Ollama nicht installiert – bitte ein anderes wählen.`, 'settings', 7000);
+    if (isGemini(S) && !S.geminiKey) throw Object.assign(new Error('Kein API-Schlüssel'), { nokey: true });
+    MODELS = await listModels(S);
+    aiOK = true; aiErr = '';
+    if (was === false) toast(`${providerIcon(S)} ${name} ist jetzt verbunden.`, 'settings', 3500);
+    // Gemini: Standardmodell automatisch setzen (gemini-1.5-flash, sonst das neueste Flash)
+    if (isGemini(S) && (!S.callerModel || !MODELS.includes(S.callerModel))) {
+      const d = defaultModel(S, MODELS);
+      if (d) { S.callerModel = d; saveSettings(); toast(`✨ ${d} spielt jetzt die Anrufer.`, 'settings', 4000); }
+    }
+    if (S.callerModel && !MODELS.includes(S.callerModel)) toast(`Modell „${S.callerModel}“ gibt es bei ${name} nicht – bitte ein anderes wählen.`, 'settings', 7000);
     if (!S.callerModel) WM.open('settings');
-  } catch {
+  } catch (e) {
     MODELS = [];
-    ollamaOK = false;
-    if (was !== false) toast('Ollama nicht erreichbar – starte Ollama, dann geht es automatisch los.', 'settings', 7000);
+    aiOK = false;
+    aiErr = e.nokey ? '' : e.message;
+    if (e.nokey) { if (was !== false && $('#boot').classList.contains('done')) WM.open('settings'); }
+    else if (was !== false) toast(isGemini(S) ? `Gemini: ${e.message}` : 'Ollama nicht erreichbar – starte Ollama, dann geht es automatisch los.', 'settings', 7000);
   }
   APPS.settings.refresh?.();
   refreshModelChip();
-  if (readyToPlay() && was !== true) warmUp(S.base, S.callerModel);
+  if (readyToPlay() && was !== true) warmUp(S, S.callerModel);
   // Kann jetzt gespielt werden und klingelt nichts? Dann den nächsten Anruf planen.
   if (readyToPlay() && !G.call && !G.nextCallAt) scheduleNextCall(2500);
   else renderPhone();
@@ -1177,8 +1231,8 @@ function tick() {
   updateStats();
   if (!G.call && WM.isOpen('phone')) renderPhone();
   APPS.giftcards.refresh?.(); APPS.creditcard.refresh?.(); APPS.remotedesk.refresh?.();
-  // Läuft Ollama noch nicht? Alle 8 Sekunden erneut prüfen.
-  if (ollamaOK === false && G.reviewLeft % 8 === 0) checkOllama();
+  // KI noch nicht erreichbar? Regelmäßig erneut prüfen (Ollama alle 8 s, Gemini alle 30 s, ohne Schlüssel nie).
+  if (aiOK === false && (isGemini(S) ? S.geminiKey && G.reviewLeft % 30 === 0 : G.reviewLeft % 8 === 0)) checkAI();
   if (G.reviewLeft === 0) review();
 }
 
@@ -1234,11 +1288,11 @@ function boot() {
   refreshModelChip();
   renderTaskbar();
   updateStats();
-  checkOllama();
+  checkAI();
   setInterval(tick, 1000);
 
   // Einschalten per Klick (Browser erlauben Töne erst nach einer Nutzeraktion)
-  const STEPS = ['System wird geladen…', 'Verbinde mit Ollama…', 'Oberfläche wird geladen…'];
+  const STEPS = ['System wird geladen…', 'Verbinde mit der KI…', 'Oberfläche wird geladen…'];
   const powerOn = () => {
     const bootEl = $('#boot');
     if (bootEl.classList.contains('starting')) return;
@@ -1259,9 +1313,10 @@ function boot() {
       $('#desktop').classList.add('reveal');
       $('#taskbar').classList.add('reveal');
       bootEl.classList.add('done');
-      if (innerWidth >= 800) WM.open('camera');
+      if (!matchMedia('(max-width: 800px), (max-height: 500px) and (orientation: landscape)').matches) WM.open('camera');
       WM.open('phone');
-      toast('Willkommen bei Kotlana OS! Die Anrufer spielt dein Ollama-Modell.', 'settings', 6000);
+      toast(`Willkommen bei Kotlana OS! Die Anrufer spielt ${providerName(S) === 'Gemini' ? 'Google Gemini' : 'dein Ollama-Modell'}.`, 'settings', 6000);
+      if (isGemini(S) && !S.geminiKey) setTimeout(() => WM.open('settings'), 900);
       if (readyToPlay()) scheduleNextCall(3000);
       // Remote-Update-Prüfung (still, ohne zu nerven)
       setTimeout(async () => {

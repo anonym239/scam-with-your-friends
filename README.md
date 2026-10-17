@@ -1,7 +1,20 @@
-# Kotlana OS – Scam With Your Friends × Ollama
+# Kotlana OS – Scam With Your Friends × Gemini
 
 Ein Nachbau des **Kotlana OS** aus *Scam With Your Friends*, der im Browser läuft – mit einem Unterschied:
-**die Anrufer werden von deinem lokalen Ollama-Modell gespielt.** Du bist der Agent und redest per Tastatur oder Mikrofon mit ihnen.
+**die Anrufer werden von Google Gemini gespielt** (oder optional von deinem lokalen Ollama-Modell). Du bist der Agent und redest per Tastatur oder Mikrofon mit ihnen.
+
+## ✨ KI einrichten (Google Gemini)
+
+1. Kostenlosen API-Schlüssel holen: **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** → „API-Schlüssel erstellen“.
+2. Kotlana OS starten → **Einstellungen** → KI-Anbieter „Google Gemini“ → Schlüssel einfügen → **Testen**.
+3. Das Spiel wählt automatisch `gemini-1.5-flash` (falls dein Schlüssel es noch anbietet) bzw. das neueste Flash-Modell.
+   Du kannst jedes andere Gemini-Modell in der Liste wählen.
+
+Der Schlüssel wird **nur lokal auf deinem Gerät** gespeichert (Browser-Speicher) und geht nur direkt an Google.
+Auf PC und Handy gleich – das Handy braucht dafür nur Internet, keine Ollama-App mehr.
+
+**Jeder Anruf ist anders:** 12 Figuren, und jede bringt pro Anruf ein zufälliges **💡 Anliegen** mit (will den Manager,
+will plaudern, will Beweise, liebt Schnäppchen …) plus eine Eigenart. Geh auf das Anliegen ein – das gibt viel Vertrauen.
 
 > Satire und Fiktion. Alle Anrufer, Codes und Kartennummern sind ausgedacht.
 
@@ -23,8 +36,10 @@ Selbst bauen: `npm ci && npm run build:exe` und danach `iscc build\installer.iss
 
 ## 📱 Auf dem Handy (Android) – alles lokal
 
-Du brauchst **kein eigenes Gerät als Server**: Ollama läuft als App auf dem Handy, und die `KotlanaOS.apk` bringt das
-Spiel mit. Beide reden nur über `127.0.0.1` miteinander – nichts geht ins Internet.
+**Mit Gemini (empfohlen):** APK installieren, in den Einstellungen den Gemini-Schlüssel eintragen – fertig. Hoch- und Querformat werden unterstützt.
+
+**Optional mit Ollama:** Ollama läuft als App auf dem Handy, und die `KotlanaOS.apk` bringt das
+Spiel mit. Beide reden nur über `127.0.0.1` miteinander. Dafür in den Einstellungen den KI-Anbieter auf „Ollama“ stellen:
 
 **So geht's:**
 

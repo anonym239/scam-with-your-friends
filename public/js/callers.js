@@ -92,7 +92,84 @@ export const PERSONAS = [
     opener: { en: 'Good afternoon. Before we start, may I have your name and employee number?', de: 'Guten Tag. Bevor wir anfangen: Darf ich Ihren Namen und Ihre Mitarbeiternummer haben?' },
     avatar: { skin: '#f7dcc8', hair: '#e9d8a6', style: 'long', glasses: true, earrings: true },
   },
+  {
+    id: 'chantal', name: 'Chantal Kowalski', age: 24, pay: 'giftcard', amount: 250, start: 45, threshold: 72, gain: 1.0, patience: 9,
+    voice: 'Influencer talk, dramatic, says "literally", "omg", "Leute", records voice notes while talking, e.g. "Omg, das ist literally der schlimmste Tag meines Lebens."',
+    persona: 'dramatic lifestyle influencer, everything is a catastrophe, loves attention and compliments on her content, gets bored fast',
+    facts: 'has 11,400 followers on "InstaGlam", sells a detox tea, her ring light is always on, she is planning a giveaway',
+    likes: { re: 'follower|influencer|content|video|reel|story|famous|berühmt|aesthetic|ästhetik|style|outfit|giveaway|fan|viral|creator', text: 'compliments on her content and style, talk about followers, going viral and her giveaway' },
+    dislikes: { re: 'boring|langweilig|old|alt|grandma|oma|calm down|beruhig|phone book|telefonbuch|never heard', text: 'being called boring, being treated like a kid, people who never heard of her' },
+    problem: { en: 'her InstaGlam account was "shadowbanned" right before her giveaway', de: 'ihr InstaGlam-Konto wurde kurz vor ihrem Gewinnspiel "geshadowbannt"' },
+    opener: { en: 'Hiii, omg, I literally have a crisis, my account got shadowbanned and my giveaway is TONIGHT!', de: 'Hiii, omg, ich hab literally eine Krise, mein Account ist geshadowbannt und mein Giveaway ist HEUTE ABEND!' },
+    avatar: { skin: '#f4cdb2', hair: '#e88fb8', style: 'long', earrings: true, lips: '#e0407a' },
+  },
+  {
+    id: 'bernd', name: 'Bernd Lehmann', age: 58, pay: 'creditcard', amount: 350, start: 50, threshold: 72, gain: 1.0, patience: 12,
+    voice: 'Proud, loud, talks about his car and his garden, says "Jawoll" and "Moment mal", e.g. "Moment mal, ich bin seit 30 Jahren Kunde!"',
+    persona: 'self-made garage owner, proud and stubborn, loves his car and his allotment garden, respects straight talk and a firm handshake attitude',
+    facts: 'runs a small car repair shop, drives a polished 1989 Mercedes, grows prize-winning tomatoes, his wife Uschi does the computer stuff normally but is on vacation',
+    likes: { re: 'auto|car|mercedes|benz|motor|engine|werkstatt|garage|garten|garden|tomate|tomato|handwerk|ehrlich|honest|klartext|straight', text: 'talking about cars, his Mercedes, his garden and tomatoes, honest straight talk' },
+    dislikes: { re: 'cloud|app|update|abo|subscription|digital|smartphone|influencer|eigentlich ganz einfach|actually simple', text: 'buzzwords like cloud, apps and subscriptions, being told it is "actually simple"' },
+    problem: { en: 'his workshop computer shows a "subscription expired" banner and the invoice program is locked', de: 'sein Werkstatt-PC zeigt "Abo abgelaufen" und das Rechnungsprogramm ist gesperrt' },
+    opener: { en: 'Lehmann here, car repair shop. My computer says my subscription expired. I never ordered a subscription!', de: 'Lehmann hier, Kfz-Werkstatt. Mein Computer sagt, mein Abo ist abgelaufen. Ich hab nie ein Abo bestellt!' },
+    avatar: { skin: '#e8b48e', hair: '#5a4632', style: 'short', mustache: '#5a4632' },
+  },
+  {
+    id: 'yuki', name: 'Yuki Tanaka', age: 29, pay: 'giftcard', amount: 180, start: 55, threshold: 70, gain: 1.1, patience: 13,
+    voice: 'Shy, very polite, apologizes a lot, nervous laugh, e.g. "Ah, sorry, sorry, I hope I am not wasting your time..."',
+    persona: 'shy, extremely polite student who apologizes for everything, anxious about deadlines, warms up to kindness and reassurance',
+    facts: 'studies architecture, her thesis is due in two days, lives with a hamster called Mochi, drinks too much matcha',
+    likes: { re: 'thesis|abschlussarbeit|uni|study|studium|architect|architekt|hamster|mochi|matcha|you can do it|du schaffst|sie schaffen|proud|stolz|no problem|kein problem|alles gut', text: 'reassurance, encouragement about her thesis, talking about her hamster Mochi or matcha' },
+    dislikes: { re: 'hurry|beeil|loud|laut|stupid question|dumme frage|obviously|offensichtlich|deadline', text: 'being rushed, being made to feel stupid, reminders of deadlines' },
+    problem: { en: 'her laptop says her thesis files are "encrypted" and she must pay to get them back', de: 'ihr Laptop sagt, ihre Abschlussarbeit sei "verschlüsselt" und sie müsse zahlen, um sie zurückzubekommen' },
+    opener: { en: 'Ah, hello, sorry to bother you... my thesis files are suddenly locked and it says I must pay?', de: 'Ah, hallo, Entschuldigung, dass ich störe... meine Abschlussarbeit ist plötzlich gesperrt und da steht, ich muss zahlen?' },
+    avatar: { skin: '#f3d9bf', hair: '#1c1c22', style: 'bun', glasses: true },
+  },
+  {
+    id: 'frank', name: 'Frank "Big Frank" Russo', age: 63, pay: 'creditcard', amount: 600, start: 40, threshold: 80, gain: 0.8, patience: 10,
+    voice: 'Loud, theatrical, talks like a big shot, says "listen to me, my friend", e.g. "Listen, my friend, I own three pizzerias. Time is money!"',
+    persona: 'loud pizzeria owner who acts like a big boss, loves respect and flattery, hates being treated like a nobody, secretly very afraid of computers',
+    facts: 'owns three pizzerias called "Mamma Russo", his nephew Luca "handles the internet", he is extremely proud of his secret tomato sauce recipe',
+    likes: { re: 'pizza|pizzeria|boss|chef|respect|respekt|mr\\.? russo|herr russo|sauce|soße|recipe|rezept|family|familie|successful|erfolgreich|vip|premium', text: 'respect ("Mr. Russo"), his pizzerias and sauce recipe, VIP treatment and family' },
+    dislikes: { re: '\\bfrank\\b(?! russo)|kumpel|buddy|wait in line|warteschlange|ticket number|ticketnummer|standard', text: 'being called just "Frank" casually, standard treatment, waiting in line' },
+    problem: { en: 'the online ordering system of his pizzerias shows hundreds of fake orders', de: 'das Online-Bestellsystem seiner Pizzerien zeigt Hunderte falsche Bestellungen' },
+    opener: { en: 'Yeah, Russo here. My online orders are full of fake pizzas. Fix it, my friend, time is money!', de: 'Ja, Russo hier. Mein Online-Shop ist voll mit falschen Pizza-Bestellungen. Reparieren Sie das, mein Freund, Zeit ist Geld!' },
+    avatar: { skin: '#e2ac84', hair: '#2a2a2a', style: 'bald', mustache: '#2a2a2a' },
+  },
 ];
+
+// ---------- Mehr Charakter: pro Anruf ein zufälliges Anliegen und eine Eigenart ----------
+// Jeder Anruf ist dadurch anders – auch wenn dieselbe Person wieder anruft.
+// re = woran das Spiel erkennt, dass der Agent auf das Anliegen eingeht (gibt Bonus-Vertrauen).
+export const WANTS = [
+  { id: 'refund', text: 'secretly you mostly want money back for something you paid last year, and you keep steering the talk to "my refund"', re: 'refund|rückerstattung|money back|geld zurück|erstatt', de: 'will unbedingt Geld zurück' },
+  { id: 'human', text: 'you want to be sure you are talking to a real human and not a robot; you test the agent with small personal questions', re: 'real person|echter mensch|kein roboter|not a robot|ich bin ein mensch|human', de: 'will wissen, ob du ein echter Mensch bist' },
+  { id: 'manager', text: 'you want to speak to a manager and only calm down if the agent makes you feel like a VIP', re: 'manager|supervisor|vorgesetzt|chef|vip|persönlich um sie|personally', de: 'will den Manager sprechen' },
+  { id: 'lonely', text: 'you are lonely today and would actually love a little chat about your day before any tech stuff', re: 'how was your day|wie war ihr tag|wie geht es ihnen|how are you|erzählen sie|tell me', de: 'ist einsam und will plaudern' },
+  { id: 'hurry', text: 'you have somewhere to be in 10 minutes (doctor appointment) and want a quick, confident solution', re: 'quick|schnell|minute|right away|sofort erledigt|gleich fertig|in no time|zack', de: 'muss gleich zum Arzt, will es schnell' },
+  { id: 'proof', text: 'you heard about phone scams on TV and want proof: a name, an employee number and a case number before you do anything', re: 'employee number|mitarbeiternummer|case number|vorgangsnummer|ticket|mein name ist|my name is|ich heiße', de: 'will Beweise: Name, Mitarbeiter- und Vorgangsnummer' },
+  { id: 'gossip', text: 'you just had a fight with your neighbor about a hedge and want someone to agree that you are right', re: 'neighbor|nachbar|hecke|hedge|sie haben recht|you are right|unverschämt|outrageous', de: 'hat Streit mit dem Nachbarn und will Zustimmung' },
+  { id: 'bargain', text: 'you love a good deal: if the agent offers something free, a discount or a bonus, you get excited', re: 'free|gratis|kostenlos|discount|rabatt|bonus|geschenk|gift|angebot|deal', de: 'liebt Schnäppchen und Gratis-Sachen' },
+  { id: 'joke', text: 'you had a terrible day and would love someone to make you laugh', re: 'joke|witz|haha|lustig|funny|lachen|laugh', de: 'braucht etwas zum Lachen' },
+  { id: 'praise', text: 'you are proud you managed to call tech support all by yourself and want to be praised for it', re: 'well done|gut gemacht|super gemacht|prima|clever|schlau|smart|stolz|proud|toll gemacht', de: 'will gelobt werden' },
+];
+export const QUIRKS = [
+  'you keep mixing up the agent\'s name',
+  'you are eating crunchy snacks while talking and apologize for it',
+  'you put the agent on speaker and sometimes talk to someone else in the room',
+  'you keep mentioning the weather',
+  'you repeat important numbers and names back slowly to be sure',
+  'you have a dog that barks whenever you get excited',
+  'you are hard of hearing and sometimes ask "What? Say again?"',
+  'you love proverbs and use one now and then',
+  'you are watching a cooking show on TV and comment on it',
+  'you keep saying you will tell your family about this call',
+];
+
+// Zufälliges Anliegen + Eigenart für einen neuen Anruf
+export function makeAgenda() {
+  return { want: WANTS[rnd(WANTS.length)], quirk: QUIRKS[rnd(QUIRKS.length)] };
+}
 
 // Schwierigkeitsgrad: wie leicht die Anrufer zu überzeugen sind. Einstellbar in den Einstellungen.
 export const DIFFS = {
@@ -180,6 +257,7 @@ export function scoreAgentLine(call, text) {
   if (KW.personal.test(t)) { d += 3; why.push('persönliches Interesse'); }
   if (new RegExp(p.likes.re, 'i').test(t)) { d += 5; why.push('Lieblingsthema'); }
   if (new RegExp(p.dislikes.re, 'i').test(t)) { d -= 7; why.push('mag das nicht'); }
+  if (call.agenda && new RegExp(call.agenda.want.re, 'i').test(t)) { d += 4; why.push('Anliegen erkannt'); }
   if (KW.pressure.test(t)) { d -= 9; why.push('Druck'); }
   if (KW.rude.test(t)) { d -= 15; why.push('unhöflich'); }
   const asks = KW.ask.test(t);
