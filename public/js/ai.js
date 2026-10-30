@@ -168,8 +168,9 @@ ${swearing
     : '- Even when angry, stay clean: no swear words.'}
 
 TRUST: rate the agent's LAST message with "trust_change":
- +7..+12 charming, caring, funny or about something you like · +1..+6 polite and helpful · 0 boring
- -3..-8 pushy, confusing, something you dislike, asks for the card/code too early, repeats itself · -9..-15 rude, threats, nonsense
+ +8..+15 charming, caring, funny or about something you like · +2..+7 polite and helpful · 0 boring
+ -4..-9 pushy, dismissive, mocking, confusing, something you dislike, asks for the card/code too early, repeats itself
+ -10..-20 insults, swearing at you, threats, telling you to shut up – ALWAYS negative, never positive, even if the rest sounds helpful
 
 Style: speak ${L} only, 1-3 short sentences like a real phone call, no stage directions, no emojis.
 "thought" = your private reaction in max 10 words. Only set "hang_up": true if the agent is very rude or trust is below 20%.
@@ -216,7 +217,7 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   const greet = S.lang === 'de' ? 'Kotlana Tech Support, was kann ich für Sie tun?' : 'Kotlana Tech Support, how can I help you?';
   const swearing = S.swearing !== false;
   const small = isSmallModel(model);
-  const insulted = score.why.includes('unhöflich') || score.why.includes('Druck');
+  const insulted = score.why.includes('unhöflich') || score.why.includes('Druck') || score.why.includes('gemein');
   const pickup = { role: 'user', content: `(${S.playerName} picks up the phone) ${greet}` };
   const messages = [
     { role: 'system', content: callerSystemPrompt(c, S.lang, swearing, small) },
@@ -241,20 +242,28 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
   // Vertrauen: die feste Regelbewertung (scoreAgentLine) bestimmt das Vorzeichen, die Zahl des
   // Modells schiebt nur die Höhe. So gibt Nettsein IMMER Pluspunkte, auch wenn das Modell eine
   // unzuverlässige/negative Zahl liefert.
-  const NEG = ['mag das nicht', 'Druck', 'unhöflich', 'zu früh nach Code gefragt', 'wiederholt sich', 'zu kurz'];
-  const positiveLine = !quiet && score.delta > 0 && !score.why.some((x) => NEG.includes(x));
-  let model_d = clamp(Math.round(Number(String(r.trust_change).replace('+', '')) || 0), -15, 12);
+  const NEG = ['mag das nicht', 'Druck', 'unhöflich', 'gemein', 'schreit', 'zu früh nach Code gefragt', 'wiederholt sich', 'zu kurz'];
+  const negativeLine = score.why.some((x) => NEG.includes(x));
+  const positiveLine = !quiet && score.delta > 0 && !negativeLine;
+  let model_d = clamp(Math.round(Number(String(r.trust_change).replace('+', '')) || 0), -20, 15);
   const wRule = small ? 0.65 : 0.5; // Gewicht der Regeln
-  let d = quiet ? 0 : Math.round(wRule * score.delta + (1 - wRule) * model_d);
-  if (score.why.includes('unhöflich')) d = Math.min(d, -8);
+  // Erkennen die Regeln nichts (neutral), entscheidet die KI allein – sie versteht auch Gemeinheiten ohne Schimpfwort
+  let d = quiet ? 0 : score.delta === 0 ? model_d : Math.round(wRule * score.delta + (1 - wRule) * model_d);
+  // Merkt die KI, dass der Satz böse war, zählt das voll (auch wenn die Regeln nichts gefunden haben)
+  if (!quiet && !positiveLine && model_d <= -4) d = Math.min(d, model_d);
+  if (score.why.includes('unhöflich')) d = Math.min(d, -15);
+  if (score.why.includes('gemein')) d = Math.min(d, -8);
+  if (score.why.includes('schreit')) d = Math.min(d, -4);
   if (score.why.includes('zu früh nach Code gefragt')) d = Math.min(d, -3);
   if (score.why.includes('wiederholt sich')) d = Math.min(d, 0) - 2;
-  // Freundlichkeit darf nie Abzug geben
-  if (positiveLine) d = Math.max(d, Math.max(1, Math.ceil(score.delta / 2)));
-  // Schwierigkeitsgrad: auf leicht fallen Minuspunkte sanfter aus
+  // Böses darf nie Pluspunkte geben, Freundlichkeit nie Abzug
+  if (negativeLine) d = Math.min(d, -1);
+  if (positiveLine) d = Math.max(d, Math.max(2, Math.ceil(score.delta * 0.75)));
+  // Schwierigkeitsgrad: auf leicht fallen nur kleine Patzer sanfter aus – echtes Bösesein zählt immer voll
+  const mean = ['unhöflich', 'gemein', 'schreit', 'Druck'].some((x) => score.why.includes(x)) || model_d <= -4;
   const penalty = c.diff?.penalty ?? 1;
-  if (d < 0 && penalty < 1) d = Math.round(d * penalty);
-  d = clamp(d, -15, 12);
+  if (d < 0 && penalty < 1 && !mean) d = Math.round(d * penalty);
+  d = clamp(d, -20, 15);
 
   const mood = MOODS.includes(String(r.mood).toLowerCase()) ? String(r.mood).toLowerCase() : d >= 6 ? 'happy' : d >= 0 ? 'neutral' : d > -9 ? 'suspicious' : 'angry';
   // Auf leichteren Stufen legen die Anrufer seltener auf

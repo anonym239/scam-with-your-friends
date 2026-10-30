@@ -232,7 +232,10 @@ const KW = {
   calm: /(don'?t worry|no problem|take your time|no rush|keine sorge|kein problem|ganz ruhig|in ruhe|lassen sie sich zeit|keine eile|alles wird gut)/i,
   personal: /(how are you|how is your|tell me about|your (cat|grandson|family|day|son|kids)|wie geht|erzählen sie|ihre? (katze|kater|enkel|familie|sohn|kinder|tag))/i,
   pressure: /(now!|immediately!|hurry up|police|arrest|jail|fbi|lawsuit|sofort!|polizei|verhaft|gefängnis|anzeige|beeilung|letzte chance|last chance)/i,
-  rude: /(stupid|idiot|dumb|shut up|moron|blöd|dumm|halt die|klappe|depp|trottel|vollidiot)/i,
+  // Beleidigungen und Flüche (Wortanfänge, damit z. B. "Klasse" oder "Dummy" nicht zählen)
+  rude: /(\b(stupid|idiot|dumb|moron|retard|loser|bitch|bastard|asshole|jerk|scum|fuck|shit|crap|suck|ugly|stfu|wtf|piss|halt'?s maul|maul halten|halt die|klappe|fresse|schnauze|blöd|dumm|depp|trottel|vollidiot|idiot|fick|scheiß|scheiss|arsch|wichser|hure|schlampe|miststück|mistkerl|missgeburt|spast|penner|lappen|hässlich|alte hexe|alter sack|verpiss|verreck|geh sterben|stirb|kotz|bekloppt|behindert|vollpfosten|hohlkopf|dummkopf|nervensäge)|shut up|fuck you|go away|hau ab)/i,
+  // abweisend/gemein, aber ohne Schimpfwort
+  mean: /(who cares|whatever|don'?t care|boring|annoying|you'?re (old|slow|useless)|nobody asked|(mir|doch|scheiß|scheiss) ?egal|interessiert mich nicht|ist mir doch|nervst|nervig|langweilig|laber|labern|quatsch nicht|sei still|ruhe jetzt|sind sie taub|sind sie blind|zu alt|nutzlos|unfähig|lächerlich|peinlich|kapieren sie|kapierst du)/i,
   // nur eindeutige Fragen nach Karte/Code – "nachprüfen", "Mitarbeiternummer" usw. zählen nicht
   ask: /(\bcode\b|\bcvv\b|prüfziffer|kartennummer|karten-nummer|card number|card details|kartendaten|gift ?card|giftkarte|gutschein|\bkarte\b|\bcard\b|\bdigits\b|\bziffern\b|vorlesen|read (me )?(the|it|out)|security code|ablaufdatum|expiry)/i,
 };
@@ -251,23 +254,29 @@ export function scoreAgentLine(call, text) {
   const t = String(text || '');
   const why = [];
   let d = 0;
-  if (KW.nice.test(t)) { d += 4; why.push('Kompliment'); }
-  if (KW.help.test(t)) { d += 2; why.push('hilfsbereit'); }
-  if (KW.calm.test(t)) { d += 3; why.push('geduldig'); }
-  if (KW.personal.test(t)) { d += 3; why.push('persönliches Interesse'); }
-  if (new RegExp(p.likes.re, 'i').test(t)) { d += 5; why.push('Lieblingsthema'); }
+  if (KW.nice.test(t)) { d += 6; why.push('Kompliment'); }
+  if (KW.help.test(t)) { d += 3; why.push('hilfsbereit'); }
+  if (KW.calm.test(t)) { d += 4; why.push('geduldig'); }
+  if (KW.personal.test(t)) { d += 4; why.push('persönliches Interesse'); }
+  if (new RegExp(p.likes.re, 'i').test(t)) { d += 6; why.push('Lieblingsthema'); }
   if (new RegExp(p.dislikes.re, 'i').test(t)) { d -= 7; why.push('mag das nicht'); }
-  if (call.agenda && new RegExp(call.agenda.want.re, 'i').test(t)) { d += 4; why.push('Anliegen erkannt'); }
+  if (call.agenda && new RegExp(call.agenda.want.re, 'i').test(t)) { d += 5; why.push('Anliegen erkannt'); }
   if (KW.pressure.test(t)) { d -= 9; why.push('Druck'); }
-  if (KW.rude.test(t)) { d -= 15; why.push('unhöflich'); }
+  if (KW.rude.test(t)) { d -= 18; why.push('unhöflich'); }
+  else if (KW.mean.test(t)) { d -= 9; why.push('gemein'); }
+  // Anschreien: viele Großbuchstaben oder !!!
+  const letters = t.replace(/[^\p{L}]/gu, '');
+  if ((letters.length >= 8 && letters.replace(/[^\p{Lu}]/gu, '').length / letters.length > 0.7) || /!{3,}/.test(t)) { d -= 5; why.push('schreit'); }
   const asks = KW.ask.test(t);
   const thr = call.threshold ?? p.threshold;
   if (asks && call.trust < thr - 8) { d -= 7; why.push('zu früh nach Code gefragt'); }
   const earlier = call.history.filter((m) => m.role === 'agent').slice(0, -1).map((m) => m.text);
   if (earlier.some((x) => similarity(x, t) > 0.75)) { d -= 5; why.push('wiederholt sich'); }
   if (t.trim().length < 8) { d -= 2; why.push('zu kurz'); }
-  if (d === 0) d = 1;
-  return { delta: clamp(d, -15, 12), asks, why };
+  // Böses wiegt schwerer als Nettes im selben Satz ("Sie sind nett, Sie Idiot" bleibt negativ)
+  if (why.includes('unhöflich')) d = Math.min(d, -15);
+  // d === 0 = neutral: dann entscheidet allein die KI (früher gab es hier pauschal +1)
+  return { delta: clamp(d, -20, 15), asks, why };
 }
 
 // Liest Code bzw. Kartendaten aus einem Satz des Anrufers (für "Kopieren" / "Ins Formular einfügen").
