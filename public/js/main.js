@@ -1,7 +1,7 @@
 import { ICONS, APP_COLORS } from './icons.js';
 import { avatarSVG } from './avatar.js';
 import { version, setOllamaTarget } from './ollama.js';
-import { listModels, warmUp, isGemini, providerName, providerIcon, defaultModel } from './llm.js';
+import { listModels, warmUp, isGemini, providerName, providerIcon, defaultModel, pickWorkingModel, suggestedModel } from './llm.js';
 import { PERSONAS, makeSecret, secretText, trustLabel, onlyDigits, extractCard, effective, DIFFS, makeAgenda } from './callers.js';
 import { sfx, configureSounds } from './sounds.js';
 import { callerTurn, memory, modelFor, canReveal } from './ai.js';
@@ -353,6 +353,23 @@ async function callerRespond(c, { opening = false, note = null, farewell = null 
     c.busy = false;
     if (G.call !== c || c.status !== 'active') return;
     if (farewell) return endCall(farewell);
+    // Gemini: Modell abgeschaltet (404), überlastet (503/Zeitüberschreitung) oder Limit erreicht (429)?
+    // Dann automatisch auf ein anderes Modell wechseln, das gerade antwortet.
+    if (isGemini(S) && (e.http === 404 || e.http === 429 || e.http >= 500 || e.timeout) && (c._switches || 0) < 3) {
+      c._switches = (c._switches || 0) + 1;
+      const bad = modelFor(c, S);
+      (c._badModels ||= []).push(bad);
+      const typing2 = appendChat(c, { role: 'caller', text: '…', typing: true });
+      const next = await pickWorkingModel(S, MODELS, { hint: suggestedModel(e), skip: c._badModels });
+      typing2?.remove();
+      if (next && G.call === c && c.status === 'active') {
+        S.callerModel = next;
+        if (S.personaModels) delete S.personaModels[c.p.id];
+        saveSettings();
+        toast(`✨ ${bad} antwortet nicht – ${next} spielt jetzt die Anrufer.`, 'settings', 5000);
+        return callerRespond(c, { opening, note, farewell });
+      }
+    }
     // Einmal still automatisch neu versuchen (kurze Aussetzer), erst dann den Fehler zeigen.
     if (!c._autoRetried) {
       c._autoRetried = true;
@@ -1092,7 +1109,7 @@ APPS.settings = {
     const saveKey = async (force) => {
       const k = $('#set-gkey', b).value.trim();
       if (!force && k === S.geminiKey) return;
-      S.geminiKey = k; saveSettings(); await checkAI();
+      S.geminiKey = k; S.geminiModelOK = false; saveSettings(); await checkAI();
     };
     $('#set-gkey', b).onchange = () => saveKey(false);
     $('#set-gtest', b).onclick = () => saveKey(true);
@@ -1193,10 +1210,14 @@ async function checkAI() {
     MODELS = await listModels(S);
     aiOK = true; aiErr = '';
     if (was === false) toast(`${providerIcon(S)} ${name} ist jetzt verbunden.`, 'settings', 3500);
-    // Gemini: Standardmodell automatisch setzen (gemini-flash-latest, sonst das neueste Flash)
-    if (isGemini(S) && (!S.callerModel || !MODELS.includes(S.callerModel))) {
-      const d = defaultModel(S, MODELS);
-      if (d) { S.callerModel = d; saveSettings(); toast(`✨ ${d} spielt jetzt die Anrufer.`, 'settings', 4000); }
+    // Gemini: Standardmodell automatisch setzen (neuestes Flash, das gerade antwortet). Google listet
+    // auch abgeschaltete Modelle (404 für neue Schlüssel) – deshalb einmal prüfen, ob es wirklich antwortet.
+    if (isGemini(S) && (!S.callerModel || !MODELS.includes(S.callerModel) || !S.geminiModelOK)) {
+      const working = await pickWorkingModel(S, MODELS, { hint: S.callerModel });
+      const d = working || defaultModel(S, MODELS);
+      if (working) S.geminiModelOK = true;
+      if (d && d !== S.callerModel) { S.callerModel = d; toast(`✨ ${d} spielt jetzt die Anrufer.`, 'settings', 4000); }
+      saveSettings();
     }
     if (S.callerModel && !MODELS.includes(S.callerModel)) toast(`Modell „${S.callerModel}“ gibt es bei ${name} nicht – bitte ein anderes wählen.`, 'settings', 7000);
     if (!S.callerModel) WM.open('settings');

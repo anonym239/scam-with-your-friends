@@ -19,3 +19,7 @@ export function warmUp(S, model) {
 }
 
 export const defaultModel = (S, models) => (isGemini(S) ? gemini.defaultModel(models) : '');
+
+// Gemini: ein Modell suchen, das gerade wirklich antwortet (Ollama: keins – dort wählt der Spieler)
+export const pickWorkingModel = (S, models, opts) => (isGemini(S) ? gemini.pickWorkingModel(S.geminiKey, models, opts) : Promise.resolve(''));
+export const suggestedModel = gemini.suggestedModel;
