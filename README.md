@@ -7,7 +7,7 @@ Ein Nachbau des **Kotlana OS** aus *Scam With Your Friends*, der im Browser läu
 
 1. Kostenlosen API-Schlüssel holen: **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** → „API-Schlüssel erstellen“.
 2. Kotlana OS starten → **Einstellungen** → KI-Anbieter „Google Gemini“ → Schlüssel einfügen → **Testen**.
-3. Das Spiel wählt automatisch `gemini-1.5-flash` (falls dein Schlüssel es noch anbietet) bzw. das neueste Flash-Modell.
+3. Das Spiel wählt automatisch `gemini-flash-latest`, also immer das neueste Flash-Modell.
    Du kannst jedes andere Gemini-Modell in der Liste wählen.
 
 Der Schlüssel wird **nur lokal auf deinem Gerät** gespeichert (Browser-Speicher) und geht nur direkt an Google.

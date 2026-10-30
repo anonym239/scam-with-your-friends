@@ -200,6 +200,9 @@ export function stateNote(c, lang, { event, insulted, swearing, note }) {
   ].filter(Boolean).join('\n');
 }
 
+// Antwortformat des Anrufers (Gemini hält sich damit sicher an das JSON; Ollama ignoriert es)
+const CALLER_SCHEMA = { thought: 'string', reply: 'string', trust_change: 'integer', mood: MOODS, note: 'string', reveal_code: 'boolean', hang_up: 'boolean' };
+
 // ---------------------------------------------------------------- Ein Zug des Anrufers
 // opening = true: das Gespräch beginnt gerade (der Agent hat abgenommen).
 // note: zusätzliche Regieanweisung für genau diese Antwort (z. B. "verabschiede dich jetzt").
@@ -227,7 +230,7 @@ export async function callerTurn(c, S, { opening = false, note = null, onPartial
 
   let r = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    r = await chatJSON(S, model, messages, { temperature: Number(S.temperature) + attempt * 0.2, onPartial });
+    r = await chatJSON(S, model, messages, { temperature: Number(S.temperature) + attempt * 0.2, onPartial, schema: CALLER_SCHEMA, required: ['reply', 'trust_change', 'mood'] });
     r.reply = cleanLine(pickReply(r), [c.p.name, c.p.name.split(' ')[0]]);
     if (r.reply) break;
     console.warn('[Kotlana] Modell lieferte keine verwertbare Antwort:', r);

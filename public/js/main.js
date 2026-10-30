@@ -1076,7 +1076,7 @@ APPS.settings = {
         <label>🔈 Lautstärke der Sounds</label><div class="row" style="align-items:center"><input type="range" min="0" max="1" step="0.05" id="set-vol" /><label class="toggle" style="flex:none;margin:0"><input type="checkbox" id="set-sounds"> an</label></div></div>
       <label class="toggle"><input type="checkbox" id="set-micsend"> 🎤 Nach dem Sprechen sofort senden (aus = erst prüfen, dann Enter)</label>
       <label class="toggle"><input type="checkbox" id="set-cow"> 👥 Kollegen verdienen fürs Team mit</label>
-      <p class="muted gem-only"><b>Gemini:</b> Die Anrufer werden von Google Gemini gespielt – schnell und schlau, auch auf dem Handy. Empfohlen: ein <code>flash</code>-Modell (Standard: <code>gemini-1.5-flash</code>, falls dein Schlüssel es noch anbietet, sonst das neueste Flash).</p>
+      <p class="muted gem-only"><b>Gemini:</b> Die Anrufer werden von Google Gemini gespielt – schnell und schlau, auch auf dem Handy. Empfohlen: ein <code>flash</code>-Modell (Standard: <code>gemini-flash-latest</code>, also immer das neueste Flash).</p>
       <p class="muted oll-only"><b>Ollama:</b> <b>Schnell:</b> <code>llama3.2:3b</code>, <code>qwen2.5:3b</code>, <code>gemma3:4b</code> · <b>Schlauer:</b> <code>llama3.1:8b</code>, <code>qwen2.5:7b</code>, <code>gemma3:12b</code>.
       „/ollama“ nutzt den eingebauten Proxy (empfohlen).</p></div>`);
   },
@@ -1193,7 +1193,7 @@ async function checkAI() {
     MODELS = await listModels(S);
     aiOK = true; aiErr = '';
     if (was === false) toast(`${providerIcon(S)} ${name} ist jetzt verbunden.`, 'settings', 3500);
-    // Gemini: Standardmodell automatisch setzen (gemini-1.5-flash, sonst das neueste Flash)
+    // Gemini: Standardmodell automatisch setzen (gemini-flash-latest, sonst das neueste Flash)
     if (isGemini(S) && (!S.callerModel || !MODELS.includes(S.callerModel))) {
       const d = defaultModel(S, MODELS);
       if (d) { S.callerModel = d; saveSettings(); toast(`✨ ${d} spielt jetzt die Anrufer.`, 'settings', 4000); }
